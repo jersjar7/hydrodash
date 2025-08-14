@@ -1,14 +1,23 @@
 // lib/utils/units.ts
-const CFS_PER_CMS = 35.314666721;
-const MM_PER_IN = 25.4;
 
+/** Cubic feet per second in one cubic meter per second */
+export const CFS_PER_CMS = 35.314666721;
+/** Millimeters in one inch */
+export const MM_PER_IN = 25.4;
+
+/** Convert cubic meters per second to cubic feet per second */
 export const cmsToCfs = (cms: number) => cms * CFS_PER_CMS;
+/** Convert cubic feet per second to cubic meters per second */
 export const cfsToCms = (cfs: number) => cfs / CFS_PER_CMS;
 
+/** Convert Celsius to Fahrenheit */
 export const cToF = (c: number) => (c * 9) / 5 + 32;
+/** Convert Fahrenheit to Celsius */
 export const fToC = (f: number) => ((f - 32) * 5) / 9;
 
+/** Convert millimeters to inches */
 export const mmToIn = (mm: number) => mm / MM_PER_IN;
+/** Convert inches to millimeters */
 export const inToMm = (inch: number) => inch * MM_PER_IN;
 
 /**

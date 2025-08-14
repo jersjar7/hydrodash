@@ -7,18 +7,15 @@
 // Re-export app-level config types (types only)
 export type { PublicConfig, SecretsConfig, AppConfig } from '@/config';
 
-// Shared helpers (single source of truth)
-export { ConfigurationError, ApiError } from './utils';
-export type { PartialBy, RequiredBy } from './utils';
-export { isDefined } from './utils';
-
 // Core model types
 export * from './models/RiverReach';
 export * from './models/FlowForecast';
 export * from './models/ReturnPeriod';
-export * from './models/WidgetConfig';
 export * from './models/SavedPlace';
 export * from './models/UserPreferences';
+export * from './models/WidgetConfig';
+export * from './models/WeatherForecast'; // include placeholder
+export * from './utils';
 
 // App-level primitives
 export interface Coordinates {
@@ -51,10 +48,11 @@ export interface BaseWidget {
 
 // Time series data point (used by multiple widgets)
 export interface TimeSeriesPoint {
-  timestamp: Date | string;
+  /** ISO UTC timestamp string */
+  timestamp: string;
   value: number;
   unit?: string;
 }
 
-// Color theme
-export type Theme = 'light' | 'dark' | 'auto';
+// Color theme preference
+export type Theme = 'light' | 'dark' | 'system';

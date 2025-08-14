@@ -49,7 +49,10 @@ function toNumber(value: unknown): number {
 // { points: [{ time: '2025-08-14T00:00Z', flow_cms: 50.2 }, ...] }
 
 type RawNoaaPoint = Record<string, unknown>;
-type RawNoaaSeries = { points?: RawNoaaPoint[] } | Record<string, unknown>;
+type RawNoaaSeries =
+  | { points?: RawNoaaPoint[] }
+  | RawNoaaPoint[]
+  | Record<string, unknown>;
 
 /** Extract a timestamp from a possibly-varying key. */
 function readTime(p: RawNoaaPoint): string {
