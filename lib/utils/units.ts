@@ -1,9 +1,15 @@
 // lib/utils/units.ts
-export const CMS_TO_CFS = 35.3146667 as const;
+const CFS_PER_CMS = 35.314666721;
+const MM_PER_IN = 25.4;
 
-export function cmsToCfs(value: number): number {
-  return value * CMS_TO_CFS;
-}
+export const cmsToCfs = (cms: number) => cms * CFS_PER_CMS;
+export const cfsToCms = (cfs: number) => cfs / CFS_PER_CMS;
+
+export const cToF = (c: number) => (c * 9) / 5 + 32;
+export const fToC = (f: number) => ((f - 32) * 5) / 9;
+
+export const mmToIn = (mm: number) => mm / MM_PER_IN;
+export const inToMm = (inch: number) => inch * MM_PER_IN;
 
 /**
  * Best-effort unit parser for streamflow series.

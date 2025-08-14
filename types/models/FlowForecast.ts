@@ -1,9 +1,10 @@
+// types/models/FlowForecast.ts
 /**
  * Raw NOAA NWPS streamflow forecast structures + normalized UI model.
  * Keep widgets using ONLY the normalized model.
  */
 
-import type { RiverReach } from "./RiverReach";
+import type { RiverReach, ReachId } from "./RiverReach";
 
 /** Raw atomic point: time + discharge value in the series' declared units */
 export interface ForecastDataPoint {
@@ -51,24 +52,27 @@ export interface FlowForecastResponse {
 /* ---------- Normalized (UI-facing) model ---------- */
 
 export type Horizon = "short" | "medium" | "long";
+export type SeriesLabel = "mean" | `member${number}`;
+export type RiskLevel = "normal" | "elevated" | "high" | "flood";
 
 export interface NormalizedPoint {
-  /** ISO timestamp */
+  /** ISO timestamp (UTC) */
   t: string;
-  /** Flow normalized to CFS (ft³/s) for consistent charting */
-  flowCfs: number;
+  /** Discharge in CFS (ft³/s) */
+  q: number;
 }
 
 export interface NormalizedSeries {
-  horizon: Horizon;          // "short" | "medium" | "long"
-  label: string;             // "mean" | "member1" | ...
-  points: NormalizedPoint[]; // sorted by time
+  horizon: Horizon;
+  label: SeriesLabel;
+  /** Sorted by time ascending */
+  points: NormalizedPoint[];
 }
 
 export interface NormalizedFlowForecast {
-  reachId: string;
+  reachId: ReachId;
   series: NormalizedSeries[];
-  /** Optional convenience metrics (computed elsewhere) */
-  peakFlow?: number;         // in CFS
-  risk?: "normal" | "elevated" | "high" | "flood";
+  /** Optional metrics computed elsewhere - all in CFS */
+  peakFlow?: number;
+  risk?: RiskLevel;
 }

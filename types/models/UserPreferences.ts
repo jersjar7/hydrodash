@@ -1,20 +1,28 @@
+// types/models/UserPreferences.ts
 /**
- * Minimal user preferences for MVP
+ * User preferences for display and behavior
+ * Note: Internal app logic uses CFS/Celsius; these control display conversion
  */
 
-export type ThemeMode = "light" | "dark" | "system";
-export type TemperatureUnit = "fahrenheit" | "celsius";
-export type FlowUnit = "cfs" | "cms";
+export type FlowUnit = 'CFS' | 'CMS';
+export type TempUnit = 'F' | 'C';
+export type ThemePref = 'system' | 'light' | 'dark';
 
 export interface UserPreferences {
-  theme: ThemeMode;
-  units: {
-    temperature: TemperatureUnit;
-    /** Default: "cfs" for US users */
-    flow: FlowUnit;
-  };
+  /** Display preference - internal logic stays in CFS */
+  flowUnit: FlowUnit;
+  /** Display preference - internal logic stays in Celsius */
+  tempUnit: TempUnit;
+  /** Theme preference */
+  theme: ThemePref;
+  /** Ordered list of saved place IDs */
+  savedPlaceIds: string[];
+  /** Ordered widget IDs for dashboard layout */
+  widgetOrder?: string[];
+  /** Auto-refresh dashboard data */
   autoRefresh?: boolean;
-  /** milliseconds */
+  /** Refresh interval in milliseconds */
   refreshInterval?: number;
+  /** Sidebar collapsed state */
   collapsedSidebar?: boolean;
 }

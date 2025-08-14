@@ -1,6 +1,9 @@
+// types/models/WidgetConfig.ts
 /**
- * Simplified widget configuration for MVP
+ * Widget configuration with discriminated union for type safety
  */
+
+import type { ReachId } from "./RiverReach";
 
 export type WidgetType =
   | "hydrograph"
@@ -9,18 +12,52 @@ export type WidgetType =
   | "precipitation-chart"
   | "statistics";
 
-export interface WidgetSource {
-  reachId?: string;
-  lat?: number;
-  lon?: number;
-}
-
-export interface WidgetConfig {
+export interface BaseWidgetConfig {
   id: string;
   type: WidgetType;
-  /** Simple ordering for DnD; no x,y,w,h yet */
-  order: number;
-  source: WidgetSource;
-  settings?: Record<string, unknown>;
+  title?: string;
   isVisible?: boolean;
+  // Optional dashboard layout (for future grid system)
+  row?: number;
+  col?: number;
+  w?: number;
+  h?: number;
 }
+
+export interface HydrographWidgetConfig extends BaseWidgetConfig {
+  type: "hydrograph";
+  reachId: ReachId;
+}
+
+export interface RiskGaugeWidgetConfig extends BaseWidgetConfig {
+  type: "risk-gauge";
+  reachId: ReachId;
+}
+
+export interface WeatherSummaryWidgetConfig extends BaseWidgetConfig {
+  type: "weather-summary";
+  lat: number;
+  lon: number;
+}
+
+export interface PrecipitationChartWidgetConfig extends BaseWidgetConfig {
+  type: "precipitation-chart";
+  lat: number;
+  lon: number;
+}
+
+export interface StatisticsWidgetConfig extends BaseWidgetConfig {
+  type: "statistics";
+  reachId: ReachId;
+  settings?: {
+    period?: "24h" | "7d" | "30d";
+    metrics?: string[];
+  };
+}
+
+export type WidgetConfig =
+  | HydrographWidgetConfig
+  | RiskGaugeWidgetConfig
+  | WeatherSummaryWidgetConfig
+  | PrecipitationChartWidgetConfig
+  | StatisticsWidgetConfig;

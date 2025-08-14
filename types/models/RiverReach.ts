@@ -1,9 +1,13 @@
+// types/models/RiverReach.ts
 /**
  * River reach metadata from NOAA NWPS API
  */
 
+// Branded type to prevent mixing up arbitrary strings with reach IDs
+export type ReachId = string & { __brand: 'ReachId' };
+
 export interface RouteReach {
-  reachId: string;
+  reachId: ReachId;
   /** API returns as string (e.g., "6") */
   streamOrder: string;
 }
@@ -21,7 +25,7 @@ export type StreamflowSeriesName =
   | "long_range";
 
 export interface RiverReach {
-  reachId: string;
+  reachId: ReachId;
   /** Optional: not all endpoints guarantee a friendly name */
   name?: string;
   latitude: number;

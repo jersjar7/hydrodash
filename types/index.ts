@@ -1,26 +1,37 @@
+// types/index.ts
 /**
  * Central Type Definitions for HydroDash
  * All shared types used across the application
  */
 
-// Re-export configuration types
+// Re-export app-level config types (types only)
 export type { PublicConfig, SecretsConfig, AppConfig } from '@/config';
 
-// Geographic coordinates
+// Shared helpers (single source of truth)
+export { ConfigurationError, ApiError } from './utils';
+export type { PartialBy, RequiredBy } from './utils';
+export { isDefined } from './utils';
+
+// Core model types
+export * from './models/RiverReach';
+export * from './models/FlowForecast';
+export * from './models/ReturnPeriod';
+export * from './models/WidgetConfig';
+export * from './models/SavedPlace';
+export * from './models/UserPreferences';
+
+// App-level primitives
 export interface Coordinates {
   lat: number;
   lng: number;
 }
 
-// Generic API response wrapper
 export interface ApiResponse<T> {
-  data: T;
+  ok: boolean;
+  data?: T;
   error?: string;
-  status: number;
-  timestamp: string;
 }
 
-// Pagination support
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   page: number;
   pageSize: number;
@@ -45,38 +56,5 @@ export interface TimeSeriesPoint {
   unit?: string;
 }
 
-// Risk levels for various metrics
-export type RiskLevel = 'low' | 'normal' | 'elevated' | 'high' | 'extreme';
-
 // Color theme
 export type Theme = 'light' | 'dark' | 'auto';
-
-// Common error types
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number,
-    public endpoint: string
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-export class ConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConfigurationError';
-  }
-}
-
-// Utility type for making properties optional
-export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-// Utility type for making properties required
-export type RequiredBy<T, K extends keyof T> = T & Required<Pick<T, K>>;
-
-// Type guard for checking if value is defined
-export const isDefined = <T>(value: T | undefined | null): value is T => {
-  return value !== undefined && value !== null;
-};
