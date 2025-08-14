@@ -42,6 +42,7 @@ export interface PublicConfig {
     flow: 'cfs' | 'cms';
     temperature: 'fahrenheit' | 'celsius';
   };
+  appOrigin: string;
 }
 
 export interface SecretsConfig {

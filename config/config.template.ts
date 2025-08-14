@@ -23,6 +23,7 @@ export const config = {
       flow: 'cfs' as 'cfs' | 'cms',
       temperature: 'fahrenheit' as 'fahrenheit' | 'celsius',
     },
+    appOrigin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   },
 
   // Server-only secrets (NEVER expose to client)
