@@ -11,7 +11,7 @@ export type WeatherCondition =
 
 export type TempUnit = 'F' | 'C';
 
-interface WeatherData {
+export interface WeatherData {
   /** Current temperature */
   temperature: number;
   /** Temperature unit */
