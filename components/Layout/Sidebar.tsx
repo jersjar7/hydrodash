@@ -5,23 +5,16 @@ import React, { useState } from 'react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import UnitsToggle, { type FlowUnit } from '@/components/settings/UnitsToggle';
 import ThemeToggle, { type ThemePref } from '@/components/settings/ThemeToggle';
-
-// Types for sidebar data (will match AppShell context later)
-export interface SavedPlace {
-  id: string;
-  name: string;
-  type?: 'home' | 'work' | 'recreation' | 'other';
-  reachId?: string;
-  lat?: number;
-  lon?: number;
-  isPrimary?: boolean;
-}
-
-interface UserPreferences {
-  flowUnit: FlowUnit;
-  tempUnit: 'F' | 'C';
-  theme: ThemePref;
-}
+import type { 
+  ActiveLocation, 
+  SavedPlace,
+  UserPreferences
+} from '@/components/Layout/AppShell';
+import { 
+  isRiverReach, 
+  isSavedPlace, 
+  getLocationProps 
+} from '@/components/Layout/AppShell';
 
 interface SidebarProps {
   /** Sidebar open/closed state */
@@ -30,8 +23,8 @@ interface SidebarProps {
   onToggle: () => void;
   /** Saved places list */
   savedPlaces?: SavedPlace[];
-  /** Currently active location */
-  activeLocation?: SavedPlace | null;
+  /** Currently active location (can be SavedPlace or RiverReach) */
+  activeLocation?: ActiveLocation;
   /** Callback when location is selected */
   onLocationSelect?: (location: SavedPlace) => void;
   /** User preferences */
@@ -54,7 +47,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   savedPlaces = [],
   activeLocation,
   onLocationSelect,
-  preferences = { flowUnit: 'CFS', tempUnit: 'F', theme: 'system' },
+  preferences = { 
+    flowUnit: 'CFS', 
+    tempUnit: 'F', 
+    theme: 'system', 
+    savedPlaceIds: [], 
+    autoRefresh: true, 
+    refreshInterval: 300000, 
+    collapsedSidebar: false 
+  },
   onPreferencesChange,
   loading = false,
   error,
@@ -62,6 +63,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   isMobile = false,
 }) => {
   const [activeSection, setActiveSection] = useState<'places' | 'settings'>('places');
+
+  // Get standardized location properties for comparison
+  const activeLocationProps = getLocationProps(activeLocation || null);
 
   // Handle preference updates
   const updatePreference = <K extends keyof UserPreferences>(
@@ -71,6 +75,19 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (onPreferencesChange) {
       onPreferencesChange({ ...preferences, [key]: value });
     }
+  };
+
+  // Check if a saved place is currently active
+  const isPlaceActive = (place: SavedPlace): boolean => {
+    if (!activeLocationProps) return false;
+    
+    // Direct ID match for saved places
+    if (activeLocationProps.id === place.id) return true;
+    
+    // Match by reachId if both have one
+    if (place.reachId && activeLocationProps.reachId === place.reachId) return true;
+    
+    return false;
   };
 
   return (
@@ -93,21 +110,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           ${className}
         `}
       >
-        {/* Sidebar Header */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-            </div>
-            <span className="font-bold text-lg text-gray-900 dark:text-white">
-              HydroDash
-            </span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            HydroDash
+          </h2>
           <button
             onClick={onToggle}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
             aria-label="Close sidebar"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,18 +126,55 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Current Location Info */}
+        {activeLocationProps && activeLocation && (
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                {isRiverReach(activeLocation) ? (
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                  {activeLocationProps.name}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                  {activeLocationProps.reachId ? (
+                    <>Reach ID: {activeLocationProps.reachId}</>
+                  ) : (
+                    <>Custom Location</>
+                  )}
+                </p>
+                {isRiverReach(activeLocation) && activeLocation.streamflow && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    {activeLocation.streamflow.length} forecast types available
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Section Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           {[
-            { key: 'places', label: 'Places', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' },
-            { key: 'settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+            { key: 'places' as const, label: 'Places', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' },
+            { key: 'settings' as const, label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
           ].map(({ key, label, icon }) => (
             <button
               key={key}
-              onClick={() => setActiveSection(key as 'places' | 'settings')}
+              onClick={() => setActiveSection(key)}
               className={`
-                flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium
-                transition-colors relative
+                flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium relative
+                transition-colors
                 ${activeSection === key
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -184,7 +231,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           onClick={() => onLocationSelect?.(place)}
                           className={`
                             w-full p-3 rounded-lg border-2 text-left transition-all
-                            ${activeLocation?.id === place.id
+                            ${isPlaceActive(place)
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                               : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                             }
@@ -207,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                           {place.type && (
                             <div className="mt-1">
-                              <span className="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded capitalize">
+                              <span className="inline-block px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 capitalize">
                                 {place.type}
                               </span>
                             </div>
@@ -222,11 +269,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         </svg>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        No saved places yet
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        Add locations from the map to get started
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                        No saved places
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Click on the map to start saving locations
                       </p>
                     </div>
                   )}
@@ -238,61 +285,49 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Settings Section */}
           {activeSection === 'settings' && (
             <div className="p-4 space-y-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                Preferences
-              </h3>
-
-              {/* Flow Units */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Flow Units
-                </label>
-                <UnitsToggle
-                  value={preferences.flowUnit}
-                  onChange={(unit) => updatePreference('flowUnit', unit)}
-                />
-              </div>
-
-              {/* Temperature Units */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Temperature Units
-                </label>
-                <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                  {(['F', 'C'] as const).map((unit) => (
-                    <button
-                      key={unit}
-                      onClick={() => updatePreference('tempUnit', unit)}
-                      className={`
-                        px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200
-                        ${preferences.tempUnit === unit
-                          ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                        }
-                      `}
-                    >
-                      °{unit}
-                    </button>
-                  ))}
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Units
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Flow</span>
+                    <UnitsToggle
+                      value={preferences.flowUnit as FlowUnit}
+                      onChange={(value) => updatePreference('flowUnit', value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Temperature</span>
+                    <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                      {(['F', 'C'] as const).map((unit) => (
+                        <button
+                          key={unit}
+                          onClick={() => updatePreference('tempUnit', unit)}
+                          className={`
+                            px-3 py-1 text-xs font-medium rounded transition-all
+                            ${preferences.tempUnit === unit
+                              ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                            }
+                          `}
+                        >
+                          °{unit}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Theme */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Theme
-                </label>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Appearance
+                </h3>
                 <ThemeToggle
-                  value={preferences.theme}
-                  onChange={(theme) => updatePreference('theme', theme)}
+                  value={preferences.theme as ThemePref}
+                  onChange={(value) => updatePreference('theme', value)}
                 />
-              </div>
-
-              {/* Additional Settings Placeholder */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  More settings coming soon
-                </div>
               </div>
             </div>
           )}

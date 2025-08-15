@@ -1,3 +1,4 @@
+// components/Layout/AppShell.tsx
 'use client';
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
@@ -6,20 +7,28 @@ import ErrorBoundary from '@/components/common/ErrorBoundary';
 import MapPanel from '@/components/Layout/MapPanel';
 import DashboardPanel from '@/components/Layout/DashboardPanel';
 import Sidebar from '@/components/Layout/Sidebar';
+import type { RiverReach, ReachId } from '@/types';
 
 // Types for our app state
 export type AppView = 'map' | 'dashboard';
 
+// Updated SavedPlace interface to align with RiverReach but keep existing properties
 export interface SavedPlace {
   id: string;
   name: string;
   type?: 'home' | 'work' | 'recreation' | 'other';
-  reachId?: string;
+  reachId?: ReachId;
   lat?: number;
   lon?: number;
   isPrimary?: boolean;
   createdAt: string;
+  // Optional metadata for saved places
+  userNotes?: string;
+  photo?: string;
 }
+
+// Union type for active location - can be either a saved place or live river reach
+export type ActiveLocation = SavedPlace | RiverReach | null;
 
 export interface UserPreferences {
   flowUnit: 'CFS' | 'CMS';
@@ -33,7 +42,7 @@ export interface UserPreferences {
 
 export interface AppState {
   currentView: AppView;
-  activeLocation: SavedPlace | null;
+  activeLocation: ActiveLocation;
   sidebarOpen: boolean;
   userPreferences: UserPreferences;
   savedPlaces: SavedPlace[];
@@ -41,15 +50,62 @@ export interface AppState {
 
 export interface AppContextType extends AppState {
   setCurrentView: (view: AppView) => void;
-  setActiveLocation: (location: SavedPlace | null) => void;
+  setActiveLocation: (location: ActiveLocation) => void;
   setSidebarOpen: (open: boolean) => void;
   setUserPreferences: (prefs: UserPreferences) => void;
   setSavedPlaces: (places: SavedPlace[]) => void;
   addSavedPlace: (place: SavedPlace) => void;
   removeSavedPlace: (placeId: string) => void;
+  // New helper to create saved place from river reach
+  saveLocationFromReach: (reach: RiverReach, type?: SavedPlace['type']) => void;
+  // Helper to get standardized location properties
+  getActiveLocationProps: () => ReturnType<typeof getLocationProps>;
   isMobile: boolean;
   isTablet: boolean;
 }
+
+// Type guard to check if active location is a RiverReach
+function isRiverReach(location: ActiveLocation): location is RiverReach {
+  return location !== null && 'streamflow' in location;
+}
+
+// Type guard to check if active location is a SavedPlace
+function isSavedPlace(location: ActiveLocation): location is SavedPlace {
+  return location !== null && 'createdAt' in location;
+}
+
+// Helper to get standardized properties from either type
+function getLocationProps(location: ActiveLocation) {
+  if (!location) return null;
+  
+  if (isRiverReach(location)) {
+    return {
+      id: location.reachId,
+      name: location.name || `Reach ${location.reachId}`,
+      reachId: location.reachId,
+      lat: location.latitude,
+      lon: location.longitude,
+      streamflow: location.streamflow,
+    };
+  }
+  
+  if (isSavedPlace(location)) {
+    return {
+      id: location.id,
+      name: location.name,
+      reachId: location.reachId,
+      lat: location.lat,
+      lon: location.lon,
+      type: location.type,
+      isPrimary: location.isPrimary,
+    };
+  }
+  
+  return null;
+}
+
+// Export helper functions for use by other components
+export { isRiverReach, isSavedPlace, getLocationProps };
 
 // Create context with default values
 const AppContext = createContext<AppContextType | null>(null);
@@ -81,7 +137,7 @@ interface AppShellProps {
 const AppShell: React.FC<AppShellProps> = ({ children }) => {
   // App state
   const [currentView, setCurrentView] = useState<AppView>('map');
-  const [activeLocation, setActiveLocation] = useState<SavedPlace | null>(null);
+  const [activeLocation, setActiveLocation] = useState<ActiveLocation>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
@@ -209,10 +265,29 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }));
     
     // Clear active location if it was removed
-    if (activeLocation?.id === placeId) {
+    if (activeLocation && getLocationProps(activeLocation)?.id === placeId) {
       setActiveLocation(null);
     }
   };
+
+  // New helper to create saved place from river reach
+  const saveLocationFromReach = (reach: RiverReach, type: SavedPlace['type'] = 'other') => {
+    const savedPlace: SavedPlace = {
+      id: crypto.randomUUID(),
+      name: reach.name || `Reach ${reach.reachId}`,
+      type,
+      reachId: reach.reachId,
+      lat: reach.latitude,
+      lon: reach.longitude,
+      isPrimary: false,
+      createdAt: new Date().toISOString(),
+    };
+    
+    addSavedPlace(savedPlace);
+  };
+
+  // Helper to get standardized location properties
+  const getActiveLocationProps = () => getLocationProps(activeLocation);
 
   // Context value
   const contextValue: AppContextType = {
@@ -228,6 +303,8 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     setSavedPlaces,
     addSavedPlace,
     removeSavedPlace,
+    saveLocationFromReach,
+    getActiveLocationProps,
     isMobile,
     isTablet,
   };
@@ -236,6 +313,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   if (isLoading) {
     return <FullPageLoadingSpinner text="Loading HydroDash..." />;
   }
+
+  // Get active location props for display
+  const activeLocationProps = getActiveLocationProps();
 
   return (
     <ErrorBoundary>
@@ -257,9 +337,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
               onToggle={() => setSidebarOpen(!sidebarOpen)}
               savedPlaces={savedPlaces}
               activeLocation={activeLocation}
-            //   onLocationSelect={setActiveLocation}
+              onLocationSelect={(place: SavedPlace) => setActiveLocation(place)}
               preferences={userPreferences}
-            //   onPreferencesChange={setUserPreferences}
+              onPreferencesChange={setUserPreferences}
               isMobile={isMobile}
             />
 
@@ -330,13 +410,13 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
                     {/* Right: Location Info */}
                     <div className="flex items-center space-x-4">
-                      {activeLocation ? (
+                      {activeLocationProps ? (
                         <div className="hidden sm:block text-right">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {activeLocation.name}
+                            {activeLocationProps.name}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {activeLocation.reachId || 'Custom Location'}
+                            {activeLocationProps.reachId || 'Custom Location'}
                           </p>
                         </div>
                       ) : (
@@ -361,13 +441,18 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   ) : (
                     <DashboardPanel
                       header={
-                        activeLocation && (
+                        activeLocationProps && (
                           <div className="mb-4">
                             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {activeLocation.name}
+                              {activeLocationProps.name}
                             </h1>
                             <p className="text-gray-600 dark:text-gray-400">
-                              {activeLocation.reachId ? `Reach ID: ${activeLocation.reachId}` : 'Custom Location'}
+                              {activeLocationProps.reachId ? `Reach ID: ${activeLocationProps.reachId}` : 'Custom Location'}
+                              {isRiverReach(activeLocation) && activeLocation.streamflow && (
+                                <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                                  • {activeLocation.streamflow.length} forecast types available
+                                </span>
+                              )}
                             </p>
                           </div>
                         )

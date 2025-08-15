@@ -6,6 +6,9 @@ import mapboxgl from 'mapbox-gl';
 import { appConfig } from '@/config';
 import LoadingSpinner, { MapLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
+import { useReachMetadata } from '@/hooks/useReachMetadata';
+import { useAppContext } from '@/components/Layout/AppShell';
+import type { ReachId } from '@/types';
 
 type OnReady = (map: mapboxgl.Map) => void;
 
@@ -42,9 +45,44 @@ const Map: React.FC<MapProps> = ({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for tracking clicked reach
+  const [clickedReachId, setClickedReachId] = useState<ReachId | null>(null);
+  
+  // Get AppShell context to update active location
+  const { setActiveLocation } = useAppContext();
+  
+  // Fetch reach metadata when a reach is clicked
+  const { 
+    data: reachData, 
+    isLoading: isLoadingReach, 
+    error: reachError 
+  } = useReachMetadata(clickedReachId, {
+    enabled: !!clickedReachId,
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
 
-  // Use external loading/error states if provided
-  const loading = externalLoading ?? isLoading;
+  // Update active location when reach data is successfully fetched
+  useEffect(() => {
+    if (reachData && !isLoadingReach && !reachError) {
+      console.log('Setting active location to:', reachData);
+      setActiveLocation(reachData);
+      // Clear the clicked reach ID to reset for next click
+      setClickedReachId(null);
+    }
+  }, [reachData, isLoadingReach, reachError, setActiveLocation]);
+
+  // Handle reach loading errors
+  useEffect(() => {
+    if (reachError && clickedReachId) {
+      console.error('Failed to fetch reach data:', reachError);
+      setError(`Failed to load data for reach ${clickedReachId}: ${reachError.message}`);
+      setClickedReachId(null);
+    }
+  }, [reachError, clickedReachId]);
+
+  // Use external loading/error states if provided, or combine with internal states
+  const loading = externalLoading ?? (isLoading || isLoadingReach);
   const displayError = externalError ?? error;
 
   const {
@@ -71,6 +109,11 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     onPickReachRef.current = onPickReach;
   }, [onPickReach]);
+
+  // Helper function to convert string to ReachId (branded type)
+  const toReachId = useCallback((id: string): ReachId => {
+    return id as ReachId;
+  }, []);
 
   useEffect(() => {
     try {
@@ -140,18 +183,33 @@ const Map: React.FC<MapProps> = ({
               });
             }
 
-            // 4) Click handler for stream selection
+            // 4) Click handler for stream selection - UPDATED FOR REAL DATA
             const clickHandler = (e: mapboxgl.MapLayerMouseEvent) => {
               const feat = e.features?.[0];
               const props = feat?.properties as Record<string, unknown> | undefined;
-              const reachId = String(
+              const reachIdString = String(
                 (props?.station_id as string | undefined) ??
                 (props?.STATIONID as string | undefined) ??
                 ''
               );
               
-              if (reachId && onPickReachRef.current) {
-                onPickReachRef.current(reachId);
+              if (reachIdString) {
+                console.log('Stream clicked, reach ID:', reachIdString);
+                
+                // Convert to branded ReachId type and trigger data fetch
+                const reachId = toReachId(reachIdString);
+                setClickedReachId(reachId);
+                
+                // Clear any previous errors
+                setError(null);
+                
+                // Call legacy callback if provided (for backward compatibility)
+                if (onPickReachRef.current) {
+                  onPickReachRef.current(reachIdString);
+                }
+              } else {
+                console.warn('Clicked stream has no valid reach ID');
+                setError('Selected stream has no valid identifier');
               }
             };
 
@@ -238,7 +296,8 @@ const Map: React.FC<MapProps> = ({
     defaultLat,
     defaultLng,
     defaultZoom, 
-    showStreams
+    showStreams,
+    toReachId
   ]);
 
   // Get map instance (for child components)
@@ -268,9 +327,11 @@ const Map: React.FC<MapProps> = ({
         {/* Map Container */}
         <div ref={containerRef} className="w-full h-full" />
         
-        {/* Loading Overlay */}
+        {/* Loading Overlay - Updated to show reach loading */}
         {loading && !displayError && (
-          <MapLoadingSpinner text="Loading map..." />
+          <MapLoadingSpinner 
+            text={isLoadingReach ? 'Loading stream data...' : 'Loading map...'} 
+          />
         )}
         
         {/* Error Overlay */}
@@ -283,11 +344,36 @@ const Map: React.FC<MapProps> = ({
                 </svg>
               </div>
               <h3 className="font-medium text-gray-900 dark:text-white mb-1">
-                Map Error
+                {reachError ? 'Stream Data Error' : 'Map Error'}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                 {displayError}
               </p>
+              {reachError && (
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setClickedReachId(null);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Success feedback for reach loading */}
+        {reachData && !isLoadingReach && (
+          <div className="absolute top-4 right-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg shadow-sm z-10 animate-fade-in">
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm font-medium">
+                Loaded: {reachData.name || `Reach ${reachData.reachId}`}
+              </span>
             </div>
           </div>
         )}
