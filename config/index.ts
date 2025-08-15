@@ -6,6 +6,7 @@
 
 // Server-side: Import actual secrets
 // Client-side: This import will fail, which is handled below
+import { config as localConfig } from './secrets.local'; 
 let configWithSecrets: any = null;
 
 if (typeof window === 'undefined') {
@@ -69,6 +70,8 @@ export interface AppConfig {
 
 // Export public config for client-side usage
 export const publicConfig: PublicConfig = configWithSecrets.public;
+
+export const appConfig = localConfig;
 
 // Export full config for server-side usage (includes secrets)
 export const getServerConfig = (): AppConfig => {
