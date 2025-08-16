@@ -21,10 +21,6 @@ interface DashboardGridProps {
   loading?: boolean;
   /** Error state */
   error?: string;
-  /** Enable scroll container */
-  scrollable?: boolean;
-  /** Maximum height for scroll container */
-  maxHeight?: string;
   /** Custom className */
   className?: string;
   /** Minimum column width for auto layout */
@@ -42,8 +38,6 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
   gap = 'md',
   loading = false,
   error,
-  scrollable = true,
-  maxHeight = 'calc(100vh - 200px)',
   className = '',
   minColumnWidth = '320px',
   animated = true,
@@ -121,14 +115,6 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
     return 'transition-all duration-300 ease-in-out';
   };
 
-  // Build container classes
-  const containerClasses = [
-    scrollable ? 'overflow-y-auto overflow-x-hidden' : '',
-    animated ? 'transition-all duration-300 ease-in-out' : '',
-    'relative',
-    className,
-  ].filter(Boolean).join(' ');
-
   // Build grid classes
   const gridClasses = [
     getGridClasses(),
@@ -142,7 +128,7 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
     return (
       <div 
         ref={ref}
-        className={`flex items-center justify-center p-8 ${className}`}
+        className={`flex h-full min-h-0 items-center justify-center p-8 ${className}`}
         data-testid={testId ? `${testId}-loading` : undefined}
       >
         <LoadingSpinner 
@@ -160,7 +146,7 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
     return (
       <div 
         ref={ref}
-        className={`flex items-center justify-center p-8 ${className}`}
+        className={`flex h-full min-h-0 items-center justify-center p-8 ${className}`}
         data-testid={testId ? `${testId}-error` : undefined}
       >
         <div className="text-center">
@@ -188,7 +174,7 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
     return (
       <div 
         ref={ref}
-        className={`flex items-center justify-center p-8 ${className}`}
+        className={`flex h-full min-h-0 items-center justify-center p-8 ${className}`}
         data-testid={testId ? `${testId}-empty` : undefined}
       >
         <div className="text-center max-w-sm">
@@ -208,27 +194,28 @@ const DashboardGrid = forwardRef<HTMLDivElement, DashboardGridProps>(({
     );
   }
 
-  // Main grid container
+  // Main grid container with explicit flex rules
   return (
     <div 
       ref={ref}
-      className={containerClasses}
-      style={scrollable ? { maxHeight } : undefined}
+      className={`flex h-full min-h-0 ${className}`}
       data-testid={testId}
     >
-      <div className={gridClasses}>
-        {layout === 'masonry' 
-          ? React.Children.map(children, (child, index) => (
-              <div 
-                key={index} 
-                className="break-inside-avoid mb-4"
-                style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-              >
-                {child}
-              </div>
-            ))
-          : children
-        }
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
+        <div className={gridClasses}>
+          {layout === 'masonry' 
+            ? React.Children.map(children, (child, index) => (
+                <div 
+                  key={index} 
+                  className="break-inside-avoid mb-4"
+                  style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                >
+                  {child}
+                </div>
+              ))
+            : children
+          }
+        </div>
       </div>
     </div>
   );

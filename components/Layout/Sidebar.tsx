@@ -21,8 +21,8 @@ import {
 
 // Updated interface to match what AppShell passes
 export interface SidebarProps {
-  /** Sidebar open/closed state */
-  isOpen: boolean;
+  /** Sidebar open/closed state (no longer used for positioning) */
+  isOpen?: boolean;
   /** Callback to toggle sidebar */
   onToggle: () => void;
   /** Saved places list (passed from AppShell but we use hook instead) */
@@ -42,7 +42,6 @@ export interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  isOpen,
   onToggle,
   preferences = { 
     flowUnit: 'CFS', 
@@ -163,173 +162,139 @@ const Sidebar: React.FC<SidebarProps> = ({
   const activeSavedPlace = savedPlaces.find(place => isPlaceActive(place)) || null;
 
   return (
-    <>
-      {/* Mobile Overlay */}
-      {isMobile && isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onToggle}
-        />
-      )}
-
-      {/* Sidebar - FLOATING: touches left edge, margins from top/bottom (PRESERVED) */}
-      <div
-        className={`
-          fixed left-0 top-40 bottom-40
-          w-80
-          bg-transparent
-          border-r border-t border-b border-gray-200 dark:border-gray-700 shadow-lg
-          rounded-r-xl
-          transform transition-all duration-300 ease-in-out overflow-hidden
-          z-40
-          flex flex-col relative
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${isMobile ? 'top-0 bottom-0 rounded-none border-t-0 border-b-0 z-50' : ''}
-          ${className}
-        `}
-      >
-        {/* GLASS OVERLAY — background only, clipped to sidebar */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-white/20 dark:bg-gray-900/20 backdrop-blur-md pointer-events-none z-0"
-        />
+    <div className={`flex flex-col h-full min-h-0 ${className}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        {/* Left: HydroDash Text */}
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          HydroDash
+        </h2>
         
-        {/* CONTENT — explicitly above the overlay */}
-        <div className="relative z-10 flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            {/* Left: HydroDash Text */}
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              HydroDash
-            </h2>
-            
-            {/* Right: Map Icon + Settings Icon + Close Button */}
-            <div className="flex items-center space-x-2">
-              {/* Map Icon */}
-              <button
-                onClick={handleMapClick}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                title="View Map"
-                aria-label="View map"
-              >
-                <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-              </button>
+        {/* Right: Map Icon + Settings Icon + Close Button */}
+        <div className="flex items-center space-x-2">
+          {/* Map Icon */}
+          <button
+            onClick={handleMapClick}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="View Map"
+            aria-label="View map"
+          >
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </button>
 
-              {/* Settings Icon */}
-              <button
-                onClick={handleSettingsClick}
-                className={`
-                  p-2 rounded-lg transition-colors
-                  ${showSettings 
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
-                  }
-                `}
-                title="Settings"
-                aria-label="Settings"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
+          {/* Settings Icon */}
+          <button
+            onClick={handleSettingsClick}
+            className={`
+              p-2 rounded-lg transition-colors
+              ${showSettings 
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }
+            `}
+            title="Settings"
+            aria-label="Settings"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
 
-              {/* Close Button (mobile only) */}
-              <button
-                onClick={onToggle}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
-                aria-label="Close sidebar"
-              >
-                <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
+          {/* Close Button (mobile only) */}
+          <button
+            onClick={onToggle}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
-          {/* Optional settings panel */}
-          {showSettings && (
-            <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-              <div className="p-4 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Units
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Flow</span>
-                      <UnitsToggle
-                        value={preferences.flowUnit as FlowUnit}
-                        onChange={(value) => updatePreference('flowUnit', value)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Temperature</span>
-                      <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                        {(['F', 'C'] as const).map((unit) => (
-                          <button
-                            key={unit}
-                            onClick={() => updatePreference('tempUnit', unit)}
-                            className={`
-                              px-3 py-1 text-xs font-medium rounded transition-all
-                              ${preferences.tempUnit === unit
-                                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                              }
-                            `}
-                          >
-                            °{unit}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Appearance
-                  </h3>
-                  <ThemeToggle
-                    value={preferences.theme as ThemePref}
-                    onChange={(value) => updatePreference('theme', value)}
+      {/* Optional settings panel */}
+      {showSettings && (
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+          <div className="p-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Units
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Flow</span>
+                  <UnitsToggle
+                    value={preferences.flowUnit as FlowUnit}
+                    onChange={(value) => updatePreference('flowUnit', value)}
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Temperature</span>
+                  <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                    {(['F', 'C'] as const).map((unit) => (
+                      <button
+                        key={unit}
+                        onClick={() => updatePreference('tempUnit', unit)}
+                        className={`
+                          px-3 py-1 text-xs font-medium rounded transition-all
+                          ${preferences.tempUnit === unit
+                            ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                          }
+                        `}
+                      >
+                        °{unit}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Content area that grows + scrolls */}
-          <div className="flex-1 min-h-0 flex flex-col">
-            <div className="p-4 flex flex-col flex-1 min-h-0">
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <SavedPlacesList
-                  activePlace={activeSavedPlace}
-                  flowUnit={preferences.flowUnit}
-                  onPlaceSelect={handlePlaceSelect}
-                  onPlaceEdit={handlePlaceEdit}
-                  onAddPlace={handleAddPlace}
-                  showAddButton={false}
-                  showFlowData={true}
-                />
-              </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                Appearance
+              </h3>
+              <ThemeToggle
+                value={preferences.theme as ThemePref}
+                onChange={(value) => updatePreference('theme', value)}
+              />
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Footer */}
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-sm flex items-center">
-            <div />
-            <div className="flex-1" />
-            <span className="flex items-center text-green-500">
-              <span className="w-2 h-2 rounded-full bg-green-500 mr-1" />
-              Live data
-            </span>
+      {/* Content area that grows + scrolls */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="p-4 flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <SavedPlacesList
+              activePlace={activeSavedPlace}
+              flowUnit={preferences.flowUnit}
+              onPlaceSelect={handlePlaceSelect}
+              onPlaceEdit={handlePlaceEdit}
+              onAddPlace={handleAddPlace}
+              showAddButton={false}
+              showFlowData={true}
+            />
           </div>
         </div>
       </div>
-    </>
+
+      {/* Footer */}
+      <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-sm flex items-center">
+        <div />
+        <div className="flex-1" />
+        <span className="flex items-center text-green-500">
+          <span className="w-2 h-2 rounded-full bg-green-500 mr-1" />
+          Live data
+        </span>
+      </div>
+    </div>
   );
 };
 

@@ -41,7 +41,7 @@ const MapPanel: React.FC<MapPanelProps> = ({
   // Error state
   if (error) {
     return (
-      <div className={`relative h-full bg-gray-100 dark:bg-gray-900 ${className}`}>
+      <div className={`relative h-full overflow-hidden bg-gray-100 dark:bg-gray-900 ${className}`}>
         <div className="absolute inset-0 flex items-center justify-center z-30">
           <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm">
             <div className="text-red-500 mb-4">
@@ -86,10 +86,7 @@ const MapPanel: React.FC<MapPanelProps> = ({
       {/* Main Map Container */}
       <div 
         ref={mapContainerRef}
-        className={`
-          h-full w-full relative z-0
-          ${showBottomPanel ? 'pb-80' : ''}
-        `}
+        className="h-full w-full relative z-0"
       >
         {/* Loading Overlay */}
         {loading && (
@@ -106,12 +103,11 @@ const MapPanel: React.FC<MapPanelProps> = ({
       {bottomPanel && (
         <div 
           className={`
-            absolute bottom-0 left-0 right-0 z-10
+            absolute bottom-0 left-0 right-0 z-10 h-80
             bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700
             shadow-lg transition-transform duration-300 ease-in-out
             ${showBottomPanel ? 'translate-y-0' : 'translate-y-full'}
           `}
-          style={{ height: '320px' }}
         >
           <div className="h-full overflow-y-auto">
             {bottomPanel}
