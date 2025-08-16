@@ -18,10 +18,8 @@ export interface ReachRoute {
 }
 
 export type StreamflowSeriesName =
-  | "analysis_assimilation"
   | "short_range"
   | "medium_range"
-  | "medium_range_blend"
   | "long_range";
 
 export interface RiverReach {
