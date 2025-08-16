@@ -7,8 +7,9 @@ import { appConfig } from '@/config';
 import LoadingSpinner, { MapLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import { useReachMetadata } from '@/hooks/useReachMetadata';
+import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useAppContext } from '@/components/Layout/AppShell';
-import type { ReachId } from '@/types';
+import type { ReachId, SavedPlace } from '@/types';
 
 type OnReady = (map: mapboxgl.Map) => void;
 
@@ -31,6 +32,16 @@ interface MapProps {
   'data-testid'?: string;
 }
 
+// Feedback message types
+type FeedbackType = 'success' | 'saved' | 'error' | 'duplicate';
+
+interface FeedbackMessage {
+  type: FeedbackType;
+  title: string;
+  message: string;
+  show: boolean;
+}
+
 const Map: React.FC<MapProps> = ({ 
   className,
   onReady,
@@ -49,8 +60,24 @@ const Map: React.FC<MapProps> = ({
   // State for tracking clicked reach
   const [clickedReachId, setClickedReachId] = useState<ReachId | null>(null);
   
+  // State for feedback messages
+  const [feedback, setFeedback] = useState<FeedbackMessage>({
+    type: 'success',
+    title: '',
+    message: '',
+    show: false,
+  });
+  
   // Get AppShell context to update active location
   const { setActiveLocation } = useAppContext();
+  
+  // Saved places hook for save functionality
+  const { 
+    addPlace, 
+    hasPlace, 
+    canAddMore,
+    isLoading: isSavingPlace 
+  } = useSavedPlaces();
   
   // Fetch reach metadata when a reach is clicked
   const { 
@@ -67,19 +94,104 @@ const Map: React.FC<MapProps> = ({
     if (reachData && !isLoadingReach && !reachError) {
       console.log('Setting active location to:', reachData);
       setActiveLocation(reachData);
+      
+      // Show success feedback with save option
+      const isAlreadySaved = hasPlace(reachData.reachId);
+      setFeedback({
+        type: isAlreadySaved ? 'duplicate' : 'success',
+        title: isAlreadySaved ? 'Already Saved' : 'Stream Loaded',
+        message: reachData.name || `Reach ${reachData.reachId}`,
+        show: true,
+      });
+      
       // Clear the clicked reach ID to reset for next click
       setClickedReachId(null);
     }
-  }, [reachData, isLoadingReach, reachError, setActiveLocation]);
+  }, [reachData, isLoadingReach, reachError, setActiveLocation, hasPlace]);
 
   // Handle reach loading errors
   useEffect(() => {
     if (reachError && clickedReachId) {
       console.error('Failed to fetch reach data:', reachError);
+      setFeedback({
+        type: 'error',
+        title: 'Failed to Load Stream',
+        message: `Could not load data for reach ${clickedReachId}`,
+        show: true,
+      });
       setError(`Failed to load data for reach ${clickedReachId}: ${reachError.message}`);
       setClickedReachId(null);
     }
   }, [reachError, clickedReachId]);
+
+  // Auto-hide feedback messages after 5 seconds
+  useEffect(() => {
+    if (feedback.show) {
+      const timer = setTimeout(() => {
+        setFeedback(prev => ({ ...prev, show: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback.show]);
+
+  // Handle saving a place
+  const handleSavePlace = useCallback(async () => {
+    if (!reachData || isSavingPlace) return;
+    
+    // Check if already saved
+    if (hasPlace(reachData.reachId)) {
+      setFeedback({
+        type: 'duplicate',
+        title: 'Already Saved',
+        message: 'This location is already in your saved places',
+        show: true,
+      });
+      return;
+    }
+    
+    // Check if can add more places
+    if (!canAddMore()) {
+      setFeedback({
+        type: 'error',
+        title: 'Cannot Save',
+        message: 'Maximum number of saved places reached',
+        show: true,
+      });
+      return;
+    }
+
+    try {
+      // Create saved place object
+      const savedPlace: Omit<SavedPlace, 'id' | 'createdAt' | 'updatedAt'> = {
+        name: reachData.name || `Reach ${reachData.reachId}`,
+        type: 'other', // Default type for map-saved places
+        reachId: reachData.reachId,
+        lat: reachData.latitude,
+        lon: reachData.longitude,
+        notes: `Saved from map on ${new Date().toLocaleDateString()}`,
+        isPrimary: false, // User can set primary later
+      };
+
+      await addPlace(savedPlace);
+      
+      setFeedback({
+        type: 'saved',
+        title: 'Place Saved!',
+        message: `Added "${savedPlace.name}" to saved places`,
+        show: true,
+      });
+      
+      console.log('Successfully saved place:', savedPlace.name);
+    } catch (error) {
+      console.error('Failed to save place:', error);
+      setFeedback({
+        type: 'error',
+        title: 'Save Failed',
+        message: error instanceof Error ? error.message : 'Could not save this location',
+        show: true,
+      });
+    }
+  }, [reachData, hasPlace, canAddMore, addPlace, isSavingPlace]);
 
   // Use external loading/error states if provided, or combine with internal states
   const loading = externalLoading ?? (isLoading || isLoadingReach);
@@ -114,6 +226,56 @@ const Map: React.FC<MapProps> = ({
   const toReachId = useCallback((id: string): ReachId => {
     return id as ReachId;
   }, []);
+
+  // Get feedback styling based on type
+  const getFeedbackStyle = (type: FeedbackType) => {
+    switch (type) {
+      case 'success':
+        return {
+          bg: 'bg-green-100 dark:bg-green-900/30',
+          text: 'text-green-800 dark:text-green-200',
+          border: 'border-green-200 dark:border-green-700',
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ),
+        };
+      case 'saved':
+        return {
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          text: 'text-blue-800 dark:text-blue-200',
+          border: 'border-blue-200 dark:border-blue-700',
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+          ),
+        };
+      case 'duplicate':
+        return {
+          bg: 'bg-amber-100 dark:bg-amber-900/30',
+          text: 'text-amber-800 dark:text-amber-200',
+          border: 'border-amber-200 dark:border-amber-700',
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          ),
+        };
+      case 'error':
+        return {
+          bg: 'bg-red-100 dark:bg-red-900/30',
+          text: 'text-red-800 dark:text-red-200',
+          border: 'border-red-200 dark:border-red-700',
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        };
+    }
+  };
 
   useEffect(() => {
     try {
@@ -200,8 +362,9 @@ const Map: React.FC<MapProps> = ({
                 const reachId = toReachId(reachIdString);
                 setClickedReachId(reachId);
                 
-                // Clear any previous errors
+                // Clear any previous errors and feedback
                 setError(null);
+                setFeedback(prev => ({ ...prev, show: false }));
                 
                 // Call legacy callback if provided (for backward compatibility)
                 if (onPickReachRef.current) {
@@ -209,7 +372,12 @@ const Map: React.FC<MapProps> = ({
                 }
               } else {
                 console.warn('Clicked stream has no valid reach ID');
-                setError('Selected stream has no valid identifier');
+                setFeedback({
+                  type: 'error',
+                  title: 'Invalid Stream',
+                  message: 'Selected stream has no valid identifier',
+                  show: true,
+                });
               }
             };
 
@@ -364,16 +532,82 @@ const Map: React.FC<MapProps> = ({
           </div>
         )}
         
-        {/* Success feedback for reach loading */}
-        {reachData && !isLoadingReach && (
-          <div className="absolute top-4 right-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg shadow-sm z-10 animate-fade-in">
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm font-medium">
-                Loaded: {reachData.name || `Reach ${reachData.reachId}`}
-              </span>
+        {/* Enhanced Feedback Notification with Save Functionality */}
+        {feedback.show && (
+          <div className="absolute top-4 right-4 z-10 animate-fade-in">
+            <div className={`
+              max-w-sm p-4 rounded-lg shadow-lg border backdrop-blur-sm
+              ${getFeedbackStyle(feedback.type).bg} 
+              ${getFeedbackStyle(feedback.type).text}
+              ${getFeedbackStyle(feedback.type).border}
+            `}>
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  {getFeedbackStyle(feedback.type).icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium">
+                    {feedback.title}
+                  </h4>
+                  <p className="text-sm opacity-90 truncate">
+                    {feedback.message}
+                  </p>
+                  
+                  {/* Save Place Button - Show only for successful loads that aren't already saved */}
+                  {feedback.type === 'success' && reachData && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <button
+                        onClick={handleSavePlace}
+                        disabled={isSavingPlace || !canAddMore()}
+                        className="
+                          px-3 py-1.5 text-xs font-medium rounded-md transition-colors
+                          bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed
+                          border border-current/20 hover:border-current/30
+                        "
+                        title={
+                          !canAddMore() 
+                            ? 'Maximum saved places reached' 
+                            : 'Add this location to your saved places'
+                        }
+                      >
+                        {isSavingPlace ? (
+                          <div className="flex items-center space-x-1">
+                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                            <span>Saving...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                            <span>Save Place</span>
+                          </div>
+                        )}
+                      </button>
+                      
+                      <button
+                        onClick={() => setFeedback(prev => ({ ...prev, show: false }))}
+                        className="p-1 hover:bg-white/20 rounded"
+                        title="Dismiss"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Dismiss button for other feedback types */}
+                  {feedback.type !== 'success' && (
+                    <button
+                      onClick={() => setFeedback(prev => ({ ...prev, show: false }))}
+                      className="mt-2 text-xs opacity-75 hover:opacity-100 underline"
+                    >
+                      Dismiss
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
