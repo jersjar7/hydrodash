@@ -15,12 +15,29 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
   className = '',
   'data-testid': testId,
 }) => {
-  const { currentView, setCurrentView, isMobile } = useAppContext();
+  const { 
+    currentView, 
+    setCurrentView, 
+    isMobile, 
+    activeLocation,
+    sidebarOpen,
+    setSidebarOpen 
+  } = useAppContext();
 
   // Only render on mobile devices
   if (!isMobile) {
     return null;
   }
+
+  // Handle return to map (only available when in dashboard with selected location)
+  const handleMapNavigation = () => {
+    setCurrentView('map');
+  };
+
+  // Handle saved places / sidebar toggle
+  const handleSavedPlacesToggle = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   return (
     <nav
@@ -36,9 +53,9 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
       <div className="flex justify-center items-center h-16 px-4">
         <div className="flex space-x-8 max-w-md w-full justify-center">
           
-          {/* Map Button */}
+          {/* Map Button - Always available */}
           <button
-            onClick={() => setCurrentView('map')}
+            onClick={handleMapNavigation}
             className={`
               flex flex-col items-center justify-center
               min-w-[64px] min-h-[48px] px-3 py-2 rounded-lg
@@ -49,7 +66,7 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
               }
             `}
-            aria-label="Switch to Map view"
+            aria-label="View map"
             role="tab"
             aria-selected={currentView === 'map'}
           >
@@ -78,27 +95,27 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
             </span>
           </button>
 
-          {/* Dashboard Button */}
+          {/* Saved Places Button - Opens sidebar */}
           <button
-            onClick={() => setCurrentView('dashboard')}
+            onClick={handleSavedPlacesToggle}
             className={`
               flex flex-col items-center justify-center
               min-w-[64px] min-h-[48px] px-3 py-2 rounded-lg
               transition-all duration-200 ease-in-out
               touch-manipulation
-              ${currentView === 'dashboard'
+              ${sidebarOpen
                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'
               }
             `}
-            aria-label="Switch to Dashboard view"
+            aria-label="View saved places"
             role="tab"
-            aria-selected={currentView === 'dashboard'}
+            aria-selected={sidebarOpen}
           >
-            {/* Dashboard Icon */}
+            {/* Saved Places Icon */}
             <svg 
               className={`w-6 h-6 mb-1 transition-colors ${
-                currentView === 'dashboard' ? 'text-blue-600 dark:text-blue-400' : 'text-current'
+                sidebarOpen ? 'text-blue-600 dark:text-blue-400' : 'text-current'
               }`} 
               fill="none" 
               stroke="currentColor" 
@@ -107,20 +124,70 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
               <path 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
-                strokeWidth={currentView === 'dashboard' ? 2.5 : 2} 
-                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" 
+                strokeWidth={sidebarOpen ? 2.5 : 2} 
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
+              />
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={sidebarOpen ? 2.5 : 2} 
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" 
               />
             </svg>
             <span 
               className={`text-xs font-medium ${
-                currentView === 'dashboard' ? 'font-semibold' : ''
+                sidebarOpen ? 'font-semibold' : ''
               }`}
             >
-              Dashboard
+              Places
             </span>
           </button>
+
+          {/* Dashboard Indicator - Shows current location when in dashboard view */}
+          {currentView === 'dashboard' && activeLocation && (
+            <div
+              className="
+                flex flex-col items-center justify-center
+                min-w-[64px] min-h-[48px] px-3 py-2 rounded-lg
+                bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400
+                transition-all duration-200 ease-in-out
+              "
+              role="status"
+              aria-label={`Viewing dashboard for ${activeLocation.name}`}
+            >
+              {/* Dashboard Icon */}
+              <svg 
+                className="w-6 h-6 mb-1 text-green-600 dark:text-green-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2.5} 
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" 
+                />
+              </svg>
+              <span className="text-xs font-semibold truncate max-w-16">
+                {activeLocation.name}
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Location Status Bar - Shows current context */}
+      {(currentView === 'dashboard' && activeLocation) && (
+        <div className="px-4 py-2 bg-gray-50/80 dark:bg-gray-800/50 border-t border-gray-200/50 dark:border-gray-700/50">
+          <div className="flex items-center justify-center space-x-2 text-xs">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-gray-600 dark:text-gray-400">
+              Monitoring {activeLocation.name}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Safe area spacing for devices with home indicators */}
       <div className="h-safe-area-inset-bottom" />

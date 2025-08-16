@@ -1,17 +1,34 @@
 // app/page.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import AppShell from '@/components/Layout/AppShell';
 import Map from '@/components/Map/Map';
+import MapPanel from '@/components/Layout/MapPanel';
 import SearchBar from '@/components/Map/SearchBar';
 import MobileNavigation from '@/components/mobile/MobileNavigation';
+import StreamPopup from '@/components/Map/StreamPopup';
 import { useAppContext, isRiverReach, getLocationProps } from '@/components/Layout/AppShell';
+import { ReachId } from '@/types/models/RiverReach';
+import { SavedPlace } from '@/types/models/SavedPlace';
 
 // Import real widget components
 import CurrentConditionsWidget from '@/components/widgets/CurrentConditionsWidget';
 import HydrographWidget from '@/components/widgets/HydrographWidget';
 import FlowSummaryWidget from '@/components/widgets/FlowSummaryWidget';
+
+// Define StreamMetadata interface (matches StreamPopup.tsx)
+interface StreamMetadata {
+  reachId: ReachId;
+  name?: string;
+  description?: string;
+  lat?: number;
+  lon?: number;
+  streamOrder?: string;
+  drainageArea?: number;
+  gaugeId?: string;
+  lastUpdated?: string;
+}
 
 // Placeholder widgets for features not yet implemented
 const PrecipitationWidget = () => (
@@ -79,45 +96,122 @@ const NoStreamSelected = () => (
         </svg>
       </div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-        Select a Stream
+        Select a Stream to Begin
       </h2>
       <p className="text-gray-600 dark:text-gray-400 mb-6">
-        Choose a river or stream on the map to view current flow conditions, forecasts, and detailed hydrological data.
+        Click on a river or stream on the map, or choose from your saved places to view detailed flow data and forecasts.
       </p>
       <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
-        <p>• Current flow conditions</p>
+        <p>• Real-time flow conditions</p>
         <p>• 10-day flow forecasts</p>
         <p>• Risk level assessments</p>
-        <p>• Historical comparisons</p>
+        <p>• Interactive hydrographs</p>
       </div>
     </div>
   </div>
 );
 
-// Map screen content
+// Map screen content with modal integration
 const MapScreen = () => {
-  const [map, setMap] = React.useState<mapboxgl.Map | null>(null);
-  
+  const [map, setMap] = useState<mapboxgl.Map | null>(null);
+  const [showStreamModal, setShowStreamModal] = useState(false);
+  const [selectedStreamData, setSelectedStreamData] = useState<StreamMetadata | undefined>(undefined);
+  const { setCurrentView, setActiveLocation, addSavedPlace, userPreferences } = useAppContext();
+
+  // Handle stream selection from map
+  const handleStreamClick = (reachId: string) => {
+    // Create stream metadata from reachId
+    // In a real app, this would fetch from an API
+    const streamData: StreamMetadata = {
+      reachId: reachId as ReachId,
+      name: `Stream ${reachId}`,
+      description: 'River segment with flow monitoring',
+      // Add other metadata as available
+    };
+    
+    setSelectedStreamData(streamData);
+    setShowStreamModal(true);
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setShowStreamModal(false);
+    setSelectedStreamData(undefined);
+  };
+
+  // Handle "Add to Saved Places" from modal
+  const handleAddToSaved = (streamData: StreamMetadata) => {
+    const newSavedPlace: SavedPlace = {
+      id: `place_${Date.now()}`,
+      name: streamData.name || `Stream ${streamData.reachId}`,
+      reachId: streamData.reachId,
+      lat: streamData.lat,
+      lon: streamData.lon,
+      createdAt: new Date().toISOString(),
+      type: 'recreation',
+    };
+    
+    addSavedPlace(newSavedPlace);
+    setShowStreamModal(false);
+    
+    // Optional: Show success message
+    console.log('Added to saved places:', newSavedPlace.name);
+  };
+
+  // Handle "View Dashboard" from modal
+  const handleViewDashboard = (streamData: StreamMetadata) => {
+    // Create a temporary location for the selected stream
+    const tempLocation: SavedPlace = {
+      id: `temp_${Date.now()}`,
+      name: streamData.name || `Stream ${streamData.reachId}`,
+      reachId: streamData.reachId,
+      lat: streamData.lat,
+      lon: streamData.lon,
+      createdAt: new Date().toISOString(),
+      type: 'other',
+    };
+    
+    // Set as active location and switch to dashboard
+    setActiveLocation(tempLocation);
+    setCurrentView('dashboard');
+    setShowStreamModal(false);
+  };
+
   return (
-    <div className="h-full relative">
-      {/* Search Bar overlay */}
-      <div className="absolute top-4 left-4 right-4 z-10">
+    <MapPanel
+      modalContent={(showStreamModal && selectedStreamData) ? (
+        <StreamPopup
+          isOpen={showStreamModal}
+          onClose={handleCloseModal}
+          streamData={selectedStreamData}
+          flowUnit={userPreferences.flowUnit}
+          tempUnit={userPreferences.tempUnit}
+          onAddToSaved={handleAddToSaved}
+          onViewDashboard={handleViewDashboard}
+          // Add flow and weather data props when available
+        />
+      ) : undefined}
+      onModalBackdropClick={handleCloseModal}
+      controls={
         <SearchBar 
           map={map}
           placeholder="Search for rivers or places..."
           className="max-w-md"
         />
-      </div>
-      
-      {/* Map */}
-      <Map onReady={setMap} onPickReach={(reachId) => console.log('Selected reach:', reachId)} />
-    </div>
+      }
+    >
+      <Map 
+        onReady={setMap} 
+        onPickReach={handleStreamClick}
+        showStreams={true}
+      />
+    </MapPanel>
   );
 };
 
 // Dashboard screen content  
 const DashboardScreen = () => {
-  const { activeLocation } = useAppContext();
+  const { activeLocation, setCurrentView } = useAppContext();
   
   // Check if we have a selected river reach
   const hasActiveReach = isRiverReach(activeLocation) || getLocationProps(activeLocation)?.reachId;
@@ -136,25 +230,43 @@ const DashboardScreen = () => {
   const displayName = locationProps?.name || activeLocation?.name || 'Unknown Location';
   const reachId = isRiverReach(activeLocation) ? activeLocation.reachId : locationProps?.reachId;
   
+  // Handle return to map
+  const handleReturnToMap = () => {
+    setCurrentView('map');
+  };
+
   return (
     <div className="h-full overflow-auto p-4 space-y-6">
-      {/* Location Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {displayName}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {reachId ? (
-            <>
-              Reach ID: <span className="font-mono text-sm">{reachId}</span>
-            </>
-          ) : (
-            'River Flow Monitoring'
-          )}
-        </p>
-        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Real-time data • Auto-refreshing
+      {/* Location Header with Navigation */}
+      <div className="flex items-center justify-between">
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {displayName}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {reachId ? (
+              <>
+                Reach ID: <span className="font-mono text-sm">{reachId}</span>
+              </>
+            ) : (
+              'River Flow Monitoring'
+            )}
+          </p>
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Real-time data • Auto-refreshing
+          </div>
         </div>
+        
+        {/* Return to Map Button (Desktop) */}
+        <button
+          onClick={handleReturnToMap}
+          className="hidden lg:flex items-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <span className="text-sm">Back to Map</span>
+        </button>
       </div>
 
       {/* Current Conditions - Hero Widget */}

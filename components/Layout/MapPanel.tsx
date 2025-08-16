@@ -19,6 +19,10 @@ interface MapPanelProps {
   bottomPanel?: React.ReactNode;
   /** Show/hide bottom panel */
   showBottomPanel?: boolean;
+  /** Modal content (stream info modal, etc.) */
+  modalContent?: React.ReactNode;
+  /** Modal backdrop click handler */
+  onModalBackdropClick?: () => void;
 }
 
 const MapPanel: React.FC<MapPanelProps> = ({
@@ -29,6 +33,8 @@ const MapPanel: React.FC<MapPanelProps> = ({
   controls,
   bottomPanel,
   showBottomPanel = false,
+  modalContent,
+  onModalBackdropClick,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +42,7 @@ const MapPanel: React.FC<MapPanelProps> = ({
   if (error) {
     return (
       <div className={`relative h-full bg-gray-100 dark:bg-gray-900 ${className}`}>
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center z-30">
           <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm">
             <div className="text-red-500 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -57,6 +63,17 @@ const MapPanel: React.FC<MapPanelProps> = ({
 
   return (
     <div className={`relative h-full overflow-hidden ${className}`}>
+      {/* 
+        Z-INDEX HIERARCHY DOCUMENTATION:
+        z-0:  Map base layer
+        z-10: Bottom panel, map attribution
+        z-20: Map controls, overlays, bottom panel toggle
+        z-30: Loading overlays, error states
+        z-40: Modal backdrops
+        z-50: Modals (stream info, etc.)
+        z-60: Modal close buttons, critical overlays
+      */}
+
       {/* Map Controls Overlay */}
       {controls && (
         <div className="absolute top-4 left-4 right-4 z-20 pointer-events-none">
@@ -70,13 +87,15 @@ const MapPanel: React.FC<MapPanelProps> = ({
       <div 
         ref={mapContainerRef}
         className={`
-          h-full w-full relative
+          h-full w-full relative z-0
           ${showBottomPanel ? 'pb-80' : ''}
         `}
       >
         {/* Loading Overlay */}
         {loading && (
-          <MapLoadingSpinner text="Loading map..." />
+          <div className="absolute inset-0 z-30">
+            <MapLoadingSpinner text="Loading map..." />
+          </div>
         )}
 
         {/* Map Content */}
@@ -129,13 +148,32 @@ const MapPanel: React.FC<MapPanelProps> = ({
           © Apple Maps
         </div>
       </div>
+
+      {/* Modal Overlay - Stream Info Modal, etc. */}
+      {modalContent && (
+        <>
+          {/* Modal Backdrop */}
+          <div 
+            className="absolute inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            onClick={onModalBackdropClick}
+            aria-label="Close modal"
+          />
+          
+          {/* Modal Container */}
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto">
+              {modalContent}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
 // Specialized map panel variants
 export const FullScreenMapPanel: React.FC<Omit<MapPanelProps, 'className'>> = (props) => (
-  <MapPanel {...props} className="fixed inset-0 z-50" />
+  <MapPanel {...props} className="fixed inset-0 z-30" />
 );
 
 export const EmbeddedMapPanel: React.FC<Omit<MapPanelProps, 'className'>> = (props) => (
