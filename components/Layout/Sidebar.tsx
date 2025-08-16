@@ -166,13 +166,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - FLOATING: touches left edge, margins from top/bottom */}
       <div 
         className={`
-          fixed left-0 top-0 h-full w-80 bg-white dark:bg-gray-800 
-          border-r border-gray-200 dark:border-gray-700 shadow-lg z-50
-          transform transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          fixed left-0 top-40 bottom-40 bg-white dark:bg-gray-800 
+          border-r border-t border-b border-gray-200 dark:border-gray-700 shadow-lg 
+          rounded-r-xl transform transition-all duration-300 ease-in-out overflow-hidden z-40
+          ${isOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'}
+          ${isMobile ? 'top-0 bottom-0 rounded-none border-t-0 border-b-0 z-50' : ''}
           ${className}
         `}
       >
@@ -191,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               aria-label="Return to map view"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
               </svg>
             </button>
           </div>
