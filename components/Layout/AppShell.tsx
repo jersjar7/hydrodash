@@ -383,6 +383,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <AppContext.Provider value={contextValue}>
         <div 
           className={`
+            relative
             min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 
             dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900
             transition-colors duration-300
@@ -463,39 +464,36 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           />
 
           {/* MAIN CONTENT - Full height minus header */}
-          <div 
-            className="h-full pt-0 overflow-hidden"
-            style={{ height: 'calc(100vh - 4rem)' }}
+          <div
+            className="absolute inset-x-0 top-16 bottom-0 z-10 overflow-hidden"  // ⟵ changed
           >
             <ErrorBoundary>
-              {shouldShowDashboard ? (
-                <DashboardPanel
-                  header={
-                    activeLocationProps && (
-                      <div className="mb-4">
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {activeLocationProps.name}
-                        </h1>
-                        <p className="text-gray-600 dark:text-gray-400">
-                          {activeLocationProps.reachId ? `Reach ID: ${activeLocationProps.reachId}` : 'Custom Location'}
-                          {isRiverReach(activeLocation) && activeLocation.streamflow && (
-                            <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                              • {activeLocation.streamflow.length} forecast types available
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )
-                  }
-                >
-                  {children}
-                </DashboardPanel>
-              ) : (
-                <MapPanel>
-                  {children}
-                </MapPanel>
-              )}
-            </ErrorBoundary>
+            {shouldShowDashboard ? (
+              <DashboardPanel
+                header={
+                  activeLocationProps && (
+                    <div className="mb-4">
+                      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {activeLocationProps.name}
+                      </h1>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {activeLocationProps.reachId ? `Reach ID: ${activeLocationProps.reachId}` : 'Custom Location'}
+                        {isRiverReach(activeLocation) && activeLocation.streamflow && (
+                          <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                            • {activeLocation.streamflow.length} forecast types available
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )
+                }
+              >
+                {children}
+              </DashboardPanel>
+            ) : (
+              children
+            )}
+          </ErrorBoundary>
           </div>
         </div>
       </AppContext.Provider>
