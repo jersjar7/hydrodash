@@ -7,6 +7,8 @@ import { ReachId } from '@/types/models/RiverReach';
 import { RiskLevel } from '@/types/models/FlowForecast';
 import { ReturnPeriodThresholds } from '@/types/models/ReturnPeriod';
 import { computeRisk } from '@/lib/utils/riskCalculator';
+import { useAppContext } from '@/components/Layout/AppShell';
+import type { StreamModalData } from '@/components/Layout/AppShell';
 
 // Flow data structure for each reach
 export interface ReachFlowData {
@@ -24,6 +26,11 @@ interface FlowFeatureProperties {
   reachId?: ReachId;
   currentFlow?: number;
   riskLevel?: RiskLevel;
+  name?: string;
+  lat?: number;
+  lon?: number;
+  latitude?: number;
+  longitude?: number;
   [key: string]: unknown;
 }
 
@@ -40,7 +47,7 @@ interface RiverOverlayProps {
   error?: string;
   /** Show flow status overlay */
   showFlowStatus?: boolean;
-  /** Callback when reach is clicked */
+  /** Legacy callback when reach is clicked (now optional for backward compatibility) */
   onReachClick?: (reachId: ReachId, flowData?: ReachFlowData) => void;
   /** Callback when reach is hovered */
   onReachHover?: (reachId: ReachId | null, flowData?: ReachFlowData) => void;
@@ -93,13 +100,16 @@ const RiverOverlay: React.FC<RiverOverlayProps> = ({
   loading = false,
   error,
   showFlowStatus = true,
-  onReachClick,
+  onReachClick, // Keep for backward compatibility
   onReachHover,
   opacity = 0.8,
   'data-testid': testId,
 }) => {
   const overlayInitialized = useRef(false);
   const currentHoveredReach = useRef<ReachId | null>(null);
+
+  // Get app context for modal control
+  const { openStreamModal } = useAppContext();
 
   // Calculate risk levels for reaches
   const enrichedFlowData = useRef<Record<string, ReachFlowData>>({});
@@ -125,6 +135,50 @@ const RiverOverlay: React.FC<RiverOverlayProps> = ({
     
     enrichedFlowData.current = enriched;
   }, [flowData, returnPeriods]);
+
+  // Extract stream data from map feature for modal
+  const createStreamModalData = useCallback((feature: mapboxgl.MapboxGeoJSONFeature, reachId: ReachId, flowInfo?: ReachFlowData): StreamModalData => {
+    const props = feature.properties as FlowFeatureProperties;
+    
+    // Try to get coordinates from feature geometry first, then from properties
+    let lat: number, lon: number;
+    
+    if (feature.geometry.type === 'Point') {
+      [lon, lat] = feature.geometry.coordinates;
+    } else if (feature.geometry.type === 'LineString') {
+      // For line features, use the midpoint
+      const coords = feature.geometry.coordinates;
+      const midIndex = Math.floor(coords.length / 2);
+      [lon, lat] = coords[midIndex];
+    } else {
+      // Fallback to properties or default coordinates
+      lat = props.lat || props.latitude || 0;
+      lon = props.lon || props.longitude || 0;
+    }
+
+    return {
+      reachId,
+      name: props.name || `Stream ${reachId}`,
+      lat,
+      lon,
+      currentFlow: flowInfo?.currentFlow,
+      metadata: {
+        riskLevel: flowInfo?.riskLevel,
+        lastUpdated: flowInfo?.lastUpdated,
+        hasFlowData: flowInfo?.currentFlow !== undefined,
+        hasReturnPeriods: !!flowInfo?.returnPeriods,
+        source: 'map_click',
+        clickedAt: new Date().toISOString(),
+        // Include any additional properties from the feature
+        ...Object.keys(props).reduce((acc, key) => {
+          if (!['station_id', 'STATIONID', 'name', 'lat', 'lon', 'latitude', 'longitude'].includes(key)) {
+            acc[key] = props[key];
+          }
+          return acc;
+        }, {} as Record<string, any>)
+      }
+    };
+  }, []);
 
   // Initialize overlay layers
   const initializeOverlay = useCallback(() => {
@@ -186,9 +240,38 @@ const RiverOverlay: React.FC<RiverOverlayProps> = ({
         const props = feature.properties as FlowFeatureProperties;
         const reachId = (props.station_id || props.STATIONID) as ReachId;
         
-        if (reachId && onReachClick) {
+        if (reachId) {
           const flowInfo = enrichedFlowData.current[reachId];
-          onReachClick(reachId, flowInfo);
+          
+          try {
+            // NEW: Create modal data and open stream modal
+            const modalData = createStreamModalData(feature, reachId, flowInfo);
+            openStreamModal(modalData);
+            
+            // Analytics tracking
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+              (window as any).gtag('event', 'stream_clicked', {
+                event_category: 'map_interaction',
+                event_label: reachId,
+                custom_parameters: {
+                  has_flow_data: !!flowInfo?.currentFlow,
+                  risk_level: flowInfo?.riskLevel || 'unknown'
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error opening stream modal:', error);
+            
+            // Fallback to legacy callback if modal fails
+            if (onReachClick) {
+              onReachClick(reachId, flowInfo);
+            }
+          }
+          
+          // Still call legacy callback for backward compatibility
+          if (onReachClick) {
+            onReachClick(reachId, flowInfo);
+          }
         }
       };
 
@@ -250,7 +333,7 @@ const RiverOverlay: React.FC<RiverOverlayProps> = ({
     } catch (err) {
       console.error('Error initializing river overlay:', err);
     }
-  }, [map, showFlowStatus, onReachClick, onReachHover, opacity]);
+  }, [map, showFlowStatus, onReachClick, onReachHover, opacity, openStreamModal, createStreamModalData]);
 
   // Update flow data colors
   const updateFlowColors = useCallback(() => {

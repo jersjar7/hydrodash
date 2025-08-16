@@ -30,6 +30,16 @@ export interface SavedPlace {
 // Union type for active location - can be either a saved place or live river reach
 export type ActiveLocation = SavedPlace | RiverReach | null;
 
+// New interface for stream modal data
+export interface StreamModalData {
+  reachId: ReachId;
+  name?: string;
+  lat: number;
+  lon: number;
+  currentFlow?: number;
+  metadata?: Record<string, any>;
+}
+
 export interface UserPreferences {
   flowUnit: 'CFS' | 'CMS';
   tempUnit: 'F' | 'C';
@@ -46,6 +56,9 @@ export interface AppState {
   sidebarOpen: boolean;
   userPreferences: UserPreferences;
   savedPlaces: SavedPlace[];
+  // New modal state
+  streamModalOpen: boolean;
+  selectedStreamData: StreamModalData | null;
 }
 
 export interface AppContextType extends AppState {
@@ -60,6 +73,10 @@ export interface AppContextType extends AppState {
   saveLocationFromReach: (reach: RiverReach, type?: SavedPlace['type']) => void;
   // Helper to get standardized location properties
   getActiveLocationProps: () => ReturnType<typeof getLocationProps>;
+  // New modal control functions
+  openStreamModal: (streamData: StreamModalData) => void;
+  closeStreamModal: () => void;
+  viewStreamDashboard: (streamData: StreamModalData) => void;
   isMobile: boolean;
   isTablet: boolean;
 }
@@ -138,10 +155,14 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   // App state
   const [currentView, setCurrentView] = useState<AppView>('map');
   const [activeLocation, setActiveLocation] = useState<ActiveLocation>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open as per requirements
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // New modal state
+  const [streamModalOpen, setStreamModalOpen] = useState(false);
+  const [selectedStreamData, setSelectedStreamData] = useState<StreamModalData | null>(null);
 
   // Responsive breakpoint detection
   const [isMobile, setIsMobile] = useState(false);
@@ -286,8 +307,40 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     addSavedPlace(savedPlace);
   };
 
+  // New modal control functions
+  const openStreamModal = (streamData: StreamModalData) => {
+    setSelectedStreamData(streamData);
+    setStreamModalOpen(true);
+  };
+
+  const closeStreamModal = () => {
+    setStreamModalOpen(false);
+    setSelectedStreamData(null);
+  };
+
+  const viewStreamDashboard = (streamData: StreamModalData) => {
+    // Create a temporary RiverReach object for the active location
+    const tempReach: RiverReach = {
+      reachId: streamData.reachId,
+      name: streamData.name || `Reach ${streamData.reachId}`,
+      latitude: streamData.lat,
+      longitude: streamData.lon,
+      streamflow: [], // Will be populated by data services
+    };
+    
+    setActiveLocation(tempReach);
+    setCurrentView('dashboard');
+    closeStreamModal();
+  };
+
   // Helper to get standardized location properties
   const getActiveLocationProps = () => getLocationProps(activeLocation);
+
+  // Enhanced location select handler that switches to dashboard
+  const handleLocationSelect = (place: SavedPlace) => {
+    setActiveLocation(place);
+    setCurrentView('dashboard'); // Automatically switch to dashboard when selecting a saved place
+  };
 
   // Context value
   const contextValue: AppContextType = {
@@ -296,6 +349,8 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     sidebarOpen,
     userPreferences,
     savedPlaces,
+    streamModalOpen,
+    selectedStreamData,
     setCurrentView,
     setActiveLocation,
     setSidebarOpen,
@@ -305,6 +360,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     removeSavedPlace,
     saveLocationFromReach,
     getActiveLocationProps,
+    openStreamModal,
+    closeStreamModal,
+    viewStreamDashboard,
     isMobile,
     isTablet,
   };
@@ -316,6 +374,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   // Get active location props for display
   const activeLocationProps = getActiveLocationProps();
+
+  // Determine if dashboard should be shown (only when there's an active location)
+  const shouldShowDashboard = currentView === 'dashboard' && activeLocation !== null;
 
   return (
     <ErrorBoundary>
@@ -337,7 +398,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
               onToggle={() => setSidebarOpen(!sidebarOpen)}
               savedPlaces={savedPlaces}
               activeLocation={activeLocation}
-              onLocationSelect={(place: SavedPlace) => setActiveLocation(place)}
+              onLocationSelect={handleLocationSelect}
               preferences={userPreferences}
               onPreferencesChange={setUserPreferences}
               isMobile={isMobile}
@@ -351,7 +412,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 ${sidebarOpen && !isMobile ? 'ml-80' : 'ml-0'}
               `}
             >
-              {/* Top Navigation Bar */}
+              {/* Top Navigation Bar - Simplified without toggle */}
               <nav className="relative z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
                 <div className="px-4 sm:px-6 lg:px-8">
                   <div className="flex justify-between items-center h-16">
@@ -380,32 +441,13 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       </div>
                     </div>
 
-                    {/* Center: View Toggle */}
-                    <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                      <button
-                        onClick={() => setCurrentView('map')}
-                        className={`
-                          px-4 py-2 rounded-md text-sm font-medium transition-all
-                          ${currentView === 'map' 
-                            ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                          }
-                        `}
-                      >
-                        Map
-                      </button>
-                      <button
-                        onClick={() => setCurrentView('dashboard')}
-                        className={`
-                          px-4 py-2 rounded-md text-sm font-medium transition-all
-                          ${currentView === 'dashboard' 
-                            ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                          }
-                        `}
-                      >
-                        Dashboard
-                      </button>
+                    {/* Center: Current View Indicator (no toggle) */}
+                    <div className="flex items-center">
+                      <div className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {shouldShowDashboard ? 'Dashboard' : 'Map'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Right: Location Info */}
@@ -434,11 +476,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
               {/* Main Content */}
               <div className="h-full pt-0 overflow-hidden">
                 <ErrorBoundary>
-                  {currentView === 'map' ? (
-                    <MapPanel>
-                      {children}
-                    </MapPanel>
-                  ) : (
+                  {shouldShowDashboard ? (
                     <DashboardPanel
                       header={
                         activeLocationProps && (
@@ -460,6 +498,10 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     >
                       {children}
                     </DashboardPanel>
+                  ) : (
+                    <MapPanel>
+                      {children}
+                    </MapPanel>
                   )}
                 </ErrorBoundary>
               </div>

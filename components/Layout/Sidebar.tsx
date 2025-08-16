@@ -19,11 +19,18 @@ import {
   getLocationProps 
 } from '@/components/Layout/AppShell';
 
-interface SidebarProps {
+// Updated interface to match what AppShell passes
+export interface SidebarProps {
   /** Sidebar open/closed state */
   isOpen: boolean;
   /** Callback to toggle sidebar */
   onToggle: () => void;
+  /** Saved places list (passed from AppShell but we use hook instead) */
+  savedPlaces?: SavedPlace[];
+  /** Currently active location (passed from AppShell but we use context instead) */
+  activeLocation?: ActiveLocation;
+  /** Callback when location is selected (passed from AppShell but we use context instead) */
+  onLocationSelect?: (location: SavedPlace) => void;
   /** User preferences */
   preferences?: UserPreferences;
   /** Callback when preferences change */
@@ -109,6 +116,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  // NEW: Handle return to map view (new navigation requirement)
+  const handleReturnToMap = () => {
+    setCurrentView('map');
+    
+    // Close sidebar on mobile
+    if (isMobile) {
+      onToggle();
+    }
+  };
+
   // Quick action handlers
   const handleViewOnMap = (place: SavedPlace) => {
     // Set as active location
@@ -159,11 +176,26 @@ const Sidebar: React.FC<SidebarProps> = ({
           ${className}
         `}
       >
-        {/* Header */}
+        {/* Header - Updated with Map Return Button */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            HydroDash
-          </h2>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              HydroDash
+            </h2>
+            
+            {/* NEW: Map Return Button */}
+            <button
+              onClick={handleReturnToMap}
+              className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+              title="Return to Map"
+              aria-label="Return to map view"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </button>
+          </div>
+          
           <button
             onClick={onToggle}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors lg:hidden"
