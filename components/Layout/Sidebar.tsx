@@ -178,6 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           fixed left-0 top-40 bottom-40 bg-white dark:bg-gray-800 
           border-r border-t border-b border-gray-200 dark:border-gray-700 shadow-lg 
           rounded-r-xl transform transition-all duration-300 ease-in-out overflow-hidden z-40
+          flex flex-col
           ${isOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'}
           ${isMobile ? 'top-0 bottom-0 rounded-none border-t-0 border-b-0 z-50' : ''}
           ${className}
@@ -292,9 +293,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* REMOVED: Places/Settings toggle (as requested) */}
 
         {/* Content Area - Places Only (since settings moved to header) */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4">
-            {/* Enhanced SavedPlacesList Integration */}
+        <div className="flex-1 min-h-0 flex flex-col">{/* CHANGED: add flex flex-col so children can grow */}
+        <div className="p-4 flex flex-col flex-1 min-h-0">{/* CHANGED: add flex-1 min-h-0 so this section consumes remaining height */}
+          {/* Make the saved places LIST the growy/scrolling child */}
+          <div className="flex-1 min-h-0 overflow-y-auto">{/* NEW wrapper: this is the container for <SavedPlacesList> */}
             <SavedPlacesList
               activePlace={activeSavedPlace}
               flowUnit={preferences.flowUnit}
@@ -303,9 +305,25 @@ const Sidebar: React.FC<SidebarProps> = ({
               onAddPlace={handleAddPlace}
               showAddButton={false}
               showFlowData={true}
-              className="space-y-3"
+              /* Do not rely on the child to accept className for layout */
             />
           </div>
+        </div>
+      </div>
+
+        {/* Footer pinned at bottom */}
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-sm flex items-center">
+          {/* Left content (empty or add something later) */}
+          <div></div>
+
+          {/* Spacer that expands */}
+          <div className="flex-1" />
+
+          {/* Right-aligned Live data */}
+          <span className="flex items-center text-green-500">
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+            Live data
+          </span>
         </div>
       </div>
     </>

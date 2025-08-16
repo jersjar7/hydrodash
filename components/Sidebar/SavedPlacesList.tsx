@@ -435,7 +435,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
   });
 
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div className={`flex h-full min-h-0 flex-col space-y-3 ${className}`}>
       {/* Header with count and status */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-gray-900 dark:text-white">
@@ -462,7 +462,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
       )}
 
       {/* Places List with Individual Flow Data */}
-      <div className="space-y-2 max-h-96 overflow-y-auto">
+      <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
         {sortedPlaces.map((place) => (
           <SavedPlaceCard
             key={place.id}
@@ -476,31 +476,6 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
           />
         ))}
       </div>
-
-      {/* Summary Footer */}
-      {places.length > 0 && (
-        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>
-              {places.length} {places.length === 1 ? 'place' : 'places'} saved
-            </span>
-            <div className="flex items-center space-x-3">
-              {places.some(p => p.isPrimary) && (
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span>Primary</span>
-                </div>
-              )}
-              {showFlowData && (
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span>Live data</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Max places warning */}
       {!canAddMore() && (
