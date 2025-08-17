@@ -187,7 +187,7 @@ const MapScreen = () => {
         <SearchBar 
           map={map}
           placeholder="Search for rivers or places..."
-          className="max-w-md"
+          className="w-auto min-w-74 absolute top-4 z-10"
         />
       }
     >

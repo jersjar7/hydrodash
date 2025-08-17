@@ -217,6 +217,11 @@ const Map: React.FC<MapProps> = ({
         style: baseStyle,
         center: [defaultLng, defaultLat],
         zoom: defaultZoom,
+        // Add 3D settings
+        pitch: 75, // Tilt angle (0-60 degrees)
+        bearing: 0, // Rotation angle
+        antialias: true // Smooth 3D rendering
+
       });
 
       map.on('load', () => {

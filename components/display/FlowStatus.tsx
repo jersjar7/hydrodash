@@ -80,7 +80,7 @@ const FlowStatus: React.FC<FlowStatusProps> = ({
             <p className={`font-medium ${styles.text}`}>
               {styles.label} Flow
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-white dark:text-white">
               Current conditions
             </p>
           </div>
