@@ -29,7 +29,7 @@ interface SidebarOverlayProps {
 export function SidebarOverlay({
   open,
   children,
-  width = 320, // w-80 equivalent
+  width = 400, // w-80 equivalent
   className = '',
   'data-testid': testId,
 }: SidebarOverlayProps) {
