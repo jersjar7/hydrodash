@@ -138,13 +138,6 @@ const MapPanel: React.FC<MapPanelProps> = ({
         </button>
       )}
 
-      {/* Map Attribution/Credits */}
-      <div className="absolute bottom-2 left-2 z-10">
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-gray-600 dark:text-gray-400">
-          © Apple Maps
-        </div>
-      </div>
-
       {/* Modal Overlay - Stream Info Modal, etc. */}
       {modalContent && (
         <>

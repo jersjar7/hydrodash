@@ -5,14 +5,19 @@ import React, { useState } from 'react';
 import { FlowUnit, ThemePref } from '@/types/models/UserPreferences';
 import UnitsToggle from '@/components/settings/UnitsToggle';
 import ThemeToggle from '@/components/settings/ThemeToggle';
+import SidebarToggle from '@/components/Sidebar/SidebarToggle';
 
 export type AppView = 'map' | 'dashboard';
 
 interface SidebarHeaderProps {
   /** Current app view */
   currentView?: AppView;
-  /** Callback to return to map view */
-  onReturnToMap?: () => void;
+  /** Callback to change view */
+  onViewChange?: (view: AppView) => void;
+  /** Whether sidebar is open */
+  sidebarOpen?: boolean;
+  /** Callback to toggle sidebar */
+  onSidebarToggle?: () => void;
   /** Current flow unit setting */
   flowUnit?: FlowUnit;
   /** Callback when flow unit changes */
@@ -23,18 +28,23 @@ interface SidebarHeaderProps {
   onThemeChange?: (theme: ThemePref) => void;
   /** Show settings panel */
   showSettings?: boolean;
+  /** Mobile breakpoint */
+  isMobile?: boolean;
   /** Custom className */
   className?: string;
 }
 
 const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   currentView = 'map',
-  onReturnToMap,
+  onViewChange,
+  sidebarOpen = false,
+  onSidebarToggle,
   flowUnit = 'CFS',
   onFlowUnitChange,
   theme = 'system',
   onThemeChange,
   showSettings = true,
+  isMobile = false,
   className = '',
 }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -44,10 +54,10 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
     setSettingsOpen(!settingsOpen);
   };
 
-  // Handle return to map
-  const handleReturnToMap = () => {
-    if (onReturnToMap) {
-      onReturnToMap();
+  // Handle view change
+  const handleViewChange = (view: AppView) => {
+    if (onViewChange) {
+      onViewChange(view);
     }
   };
 
@@ -75,17 +85,16 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-1">
-            {/* NEW: Single Map Return Button (replaces Map/Dashboard toggle) */}
-            <button
-              onClick={handleReturnToMap}
-              className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-              title="Return to Map"
-              aria-label="Return to map view"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </button>
+            {/* Sidebar Toggle - NEW */}
+            {onSidebarToggle && (
+              <SidebarToggle
+                isOpen={sidebarOpen}
+                onToggle={onSidebarToggle}
+                size="sm"
+                variant="hamburger"
+                className="mr-1"
+              />
+            )}
 
             {/* Settings Button */}
             {showSettings && (
@@ -109,17 +118,17 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({
           </div>
         </div>
 
-        {/* Current View Indicator (optional, shows current context) */}
-        {currentView === 'dashboard' && (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            {/* Map Button */}
+            <button
+              onClick={() => onViewChange?.('map')}
+              className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+              title="View Map"
+              aria-label="View map"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
               </svg>
-              <span>Dashboard View</span>
-            </div>
-          </div>
-        )}
+            </button>
       </div>
 
       {/* Settings Panel */}
