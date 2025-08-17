@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import UnitsToggle, { type FlowUnit } from '@/components/settings/UnitsToggle';
-import ThemeToggle, { type ThemePref } from '@/components/settings/ThemeToggle';
 import SidebarHeader from '@/components/Sidebar/SidebarHeader';
 import SavedPlacesList from '@/components/Sidebar/SavedPlacesList';
 import { useSavedPlaces } from '@/hooks/useSavedPlaces';

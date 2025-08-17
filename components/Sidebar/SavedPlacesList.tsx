@@ -382,31 +382,6 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
 
   return (
     <div className={`flex h-full min-h-0 flex-col space-y-3 ${className}`}>
-      {/* Header with count and status */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-          Saved Places
-        </h3>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          {getPlaceCount()}/{20}
-        </div>
-      </div>
-
-      {/* Add Place Button */}
-      {showAddButton && onAddPlace && canAddMore() && (
-        <button
-          onClick={handleAddPlace}
-          className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-200 group"
-        >
-          <div className="flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="text-sm font-medium">Add new place</span>
-          </div>
-        </button>
-      )}
-
       {/* Places List with Individual Flow Data */}
       <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
         {sortedPlaces.map((place) => (
