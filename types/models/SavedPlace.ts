@@ -5,12 +5,9 @@
 
 import type { ReachId } from "./RiverReach";
 
-export type PlaceType = "home" | "work" | "recreation" | "other";
-
 export interface SavedPlace {
   id: string;
   name: string;
-  type?: PlaceType;
   /** Either reachId OR coordinates are required to resolve data */
   reachId?: ReachId;
   lat?: number;
