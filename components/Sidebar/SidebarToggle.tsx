@@ -11,7 +11,7 @@ interface SidebarToggleProps {
   /** Button size variant */
   size?: 'sm' | 'md' | 'lg';
   /** Display variant */
-  variant?: 'hamburger' | 'arrow' | 'auto';
+  variant?: 'hamburger' | 'arrow' | 'auto' | 'panel';
   /** Custom className */
   className?: string;
   /** Position for fixed positioning */
@@ -28,7 +28,7 @@ const SidebarToggle: React.FC<SidebarToggleProps> = ({
   isOpen,
   onToggle,
   size = 'md',
-  variant = 'auto',
+  variant = 'hamburger', // Changed default to always show hamburger
   className = '',
   position = 'relative',
   showLabel = false,
@@ -49,47 +49,36 @@ const SidebarToggle: React.FC<SidebarToggleProps> = ({
     lg: 'w-6 h-6',
   };
 
-  // Determine which icon to show
+  // Determine which icon to show - now always hamburger unless specified
   const getIconType = () => {
-    if (variant === 'hamburger') return 'hamburger';
+    if (variant === 'panel') return 'panel';
     if (variant === 'arrow') return 'arrow';
-    // Auto: show hamburger when closed, arrow when open
-    return isOpen ? 'arrow' : 'hamburger';
+    // Default to hamburger (no animation based on open state)
+    return 'hamburger';
   };
 
   const iconType = getIconType();
 
-  // Hamburger icon with animation
+  // Static hamburger icon (no animation)
   const HamburgerIcon = () => (
     <div className={`${iconSizeClasses[size]} flex flex-col justify-center space-y-1`}>
-      <div
-        className={`
-          h-0.5 bg-current rounded-full transition-all duration-300 ease-in-out origin-center
-          ${isOpen && variant === 'hamburger' 
-            ? 'rotate-45 translate-y-1.5 w-full' 
-            : 'w-full'
-          }
-        `}
-      />
-      <div
-        className={`
-          h-0.5 bg-current rounded-full transition-all duration-300 ease-in-out
-          ${isOpen && variant === 'hamburger' 
-            ? 'opacity-0 scale-0' 
-            : 'opacity-100 scale-100 w-full'
-          }
-        `}
-      />
-      <div
-        className={`
-          h-0.5 bg-current rounded-full transition-all duration-300 ease-in-out origin-center
-          ${isOpen && variant === 'hamburger' 
-            ? '-rotate-45 -translate-y-1.5 w-full' 
-            : 'w-full'
-          }
-        `}
-      />
+      <div className="h-0.5 bg-current rounded-full w-full" />
+      <div className="h-0.5 bg-current rounded-full w-full" />
+      <div className="h-0.5 bg-current rounded-full w-full" />
     </div>
+  );
+
+  // Panel/Sidebar icon (like in your image)
+  const PanelIcon = () => (
+    <svg 
+      className={iconSizeClasses[size]} 
+      fill="currentColor" 
+      viewBox="0 0 24 24"
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" ry="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <rect x="3" y="4" width="6" height="16" rx="2" ry="2" fill="currentColor"/>
+      <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2"/>
+    </svg>
   );
 
   // Arrow icon
@@ -111,21 +100,21 @@ const SidebarToggle: React.FC<SidebarToggleProps> = ({
     </svg>
   );
 
-  // Base button classes
+  // Base button classes - changed to white text
   const baseClasses = `
     inline-flex items-center justify-center
-    text-gray-600 dark:text-gray-400
-    hover:text-gray-900 dark:hover:text-white
-    hover:bg-gray-100 dark:hover:bg-gray-700
-    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-    dark:focus:ring-offset-gray-800
+    text-white
+    hover:text-gray-200
+    hover:bg-white/10
+    focus:outline-none focus:ring-2 focus:ring-white/20 focus:ring-offset-2
+    focus:ring-offset-transparent
     rounded-lg transition-all duration-200 ease-in-out
     ${sizeClasses[size]}
   `;
 
   // Position classes
   const positionClasses = position === 'fixed' 
-    ? 'fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700'
+    ? 'fixed top-4 left-4 z-50 bg-white/10 backdrop-blur-sm shadow-lg border border-white/20'
     : '';
 
   const buttonClasses = [baseClasses, positionClasses, className]
@@ -142,12 +131,14 @@ const SidebarToggle: React.FC<SidebarToggleProps> = ({
         data-testid={testId}
         type="button"
       >
-        {iconType === 'hamburger' ? <HamburgerIcon /> : <ArrowIcon />}
+        {iconType === 'hamburger' && <HamburgerIcon />}
+        {iconType === 'panel' && <PanelIcon />}
+        {iconType === 'arrow' && <ArrowIcon />}
       </button>
 
       {/* Optional Label */}
       {showLabel && (
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <span className="text-sm font-medium text-white">
           {isOpen ? 'Close' : 'Menu'}
         </span>
       )}

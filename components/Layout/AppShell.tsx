@@ -392,7 +392,22 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             ${isMobile ? 'text-sm' : 'text-base'}
           `}
         >
-          <AppFrame header={<div />}>
+          <AppFrame>
+            {/* App Title - positioned above sidebar */}
+            <div className="fixed top-10 left-7 z-10">
+              <div className="pr-26 pl-7 pt-0.5 pb-3 -ml-7 mr-40" style={{
+                background: 'radial-gradient(ellipse 400px 150px at left, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 25%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.1) 90%,  transparent 100%)',
+              }}>
+                <h1 className="text-6xl font-light tracking-tight text-white" style={{
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                  letterSpacing: '-0.02em'
+                }}>
+                  <span style={{ fontWeight: 400 }}>Hydro</span>
+                  <span style={{ fontWeight: 200 }}>Dash</span>
+                </h1>
+              </div>
+            </div>
             
             {/* Sidebar Overlay */}
             <SidebarOverlay open={sidebarOpen}>
