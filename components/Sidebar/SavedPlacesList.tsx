@@ -57,6 +57,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
 
   // Use individual flow data hook for this place (only if showFlowData is true)
   const {
@@ -73,6 +74,13 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const currentFlow = getCurrentFlow(flowData);
   const peakFlow = getPeakFlow(flowData);
   const riskLevel = flowData?.risk || 'normal';
+
+  // Track when data was last fetched
+  useEffect(() => {
+    if (!flowLoading && flowData && !flowError) {
+      setLastFetchTime(new Date());
+    }
+  }, [flowLoading, flowData, flowError]);
 
   // Handle video loading and playback
   useEffect(() => {
@@ -274,9 +282,9 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
               )}
 
               {/* Data freshness */}
-              {!flowLoading && flowData?.series?.[0]?.points?.[0] && (
+              {!flowLoading && lastFetchTime && (
                 <div className="text-xs text-white drop-shadow-sm">
-                  Updated {new Date(flowData.series[0].points[0].t).toLocaleTimeString([], { 
+                  Updated {lastFetchTime.toLocaleTimeString([], { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                   })}

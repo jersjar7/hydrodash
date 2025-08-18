@@ -6,11 +6,12 @@
 import type { NormalizedFlowForecast, NormalizedPoint } from '@/types';
 
 /**
- * Find the flow value closest to the target time by comparing timestamps
+ * Find the flow value for the current hour (not closest point)
+ * For hourly forecast data, returns the forecast for the hour we're currently in
  * 
  * @param points - Array of time series points (sorted by time ascending)
- * @param targetTime - ISO timestamp to find closest point to (defaults to current device time)
- * @returns Flow value in CFS or null if no valid data
+ * @param targetTime - ISO timestamp to find current hour for (defaults to current device time)
+ * @returns Flow value in CFS for current hour or null if no valid data
  */
 export function getCurrentFlowValue(
   points: NormalizedPoint[], 
@@ -19,14 +20,51 @@ export function getCurrentFlowValue(
   if (!points || points.length === 0) return null;
   
   const target = targetTime ? new Date(targetTime) : new Date();
-  const targetTime_ms = target.getTime();
   
+  // Floor to the current hour (e.g., 15:56 -> 15:00)
+  const currentHour = new Date(target);
+  currentHour.setMinutes(0, 0, 0); // Set to beginning of hour
+  
+  // Look for forecast point that matches the current hour
+  // For hourly data, this should be an exact match
+  const targetHourISO = currentHour.toISOString();
+  
+  // First try to find exact match for current hour
+  for (const point of points) {
+    if (point.t === targetHourISO) {
+      return point.q;
+    }
+  }
+  
+  // If no exact match, find the forecast point closest to but not after current hour
+  // This handles cases where forecast times might be slightly off or missing
+  let bestPoint: NormalizedPoint | null = null;
+  const currentHourMs = currentHour.getTime();
+  
+  for (const point of points) {
+    const pointTime = new Date(point.t).getTime();
+    
+    // Only consider points at or before current hour
+    if (pointTime <= currentHourMs) {
+      if (!bestPoint || pointTime > new Date(bestPoint.t).getTime()) {
+        bestPoint = point;
+      }
+    }
+  }
+  
+  // If we found a point for current hour or earlier, use it
+  if (bestPoint) {
+    return bestPoint.q;
+  }
+  
+  // If no point for current hour or earlier exists, 
+  // fall back to closest future point (original behavior)
   let closestPoint: NormalizedPoint | null = null;
   let smallestTimeDiff = Infinity;
   
   for (const point of points) {
     const pointTime = new Date(point.t).getTime();
-    const timeDiff = Math.abs(targetTime_ms - pointTime);
+    const timeDiff = Math.abs(target.getTime() - pointTime);
     
     if (timeDiff < smallestTimeDiff) {
       smallestTimeDiff = timeDiff;
@@ -38,7 +76,13 @@ export function getCurrentFlowValue(
 }
 
 /**
- * Get current flow from forecast data by comparing device time to validTime
+ * Get current flow from forecast data using current hour logic
+ * 
+ * Flow Selection Logic:
+ * 1. **Current Hour Floor**: At 15:56 local time, it floors to 15:00 local time (21:00 UTC)
+ * 2. **Exact Match First**: Looks for forecast point with `validTime: "2025-08-18T21:00:00Z"`
+ * 3. **Fallback Logic**: If no exact match, finds the most recent point before/at current hour
+ * 4. **Final Fallback**: If no past points exist, uses original closest-point logic
  * 
  * @param forecast - Normalized flow forecast data
  * @returns Current flow value in CFS or null if no data available
