@@ -14,7 +14,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 // Video mapping for each risk level
 const FLOW_VIDEOS = {
   no_data: '/assets/video/Flood-Flow.mp4',
-  normal: '/assets/video/High-Flow.mp4',
+  normal: '/assets/video/Normal-Flow.mp4',
   elevated: '/assets/video/Elevated-Flow.mp4',
   high: '/assets/video/High-Flow.mp4',
   flood: '/assets/video/Flood-Flow.mp4'
@@ -148,10 +148,10 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Get risk level styling
   const getRiskLevelStyle = (risk: RiskLevel) => {
     const styles = {
-      normal: { bg: 'bg-green-100', text: 'text-green-800', icon: '✓' },
-      elevated: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '⚠️' },
-      high: { bg: 'bg-orange-100', text: 'text-orange-800', icon: '🔶' },
-      flood: { bg: 'bg-red-100', text: 'text-red-800', icon: '🚨' }
+      normal: { bg: 'bg-green-300', text: 'text-green-900', icon: '✓' },
+      elevated: { bg: 'bg-yellow-300', text: 'text-yellow-900', icon: '⚠️' },
+      high: { bg: 'bg-orange-300', text: 'text-orange-900', icon: '🔶' },
+      flood: { bg: 'bg-red-300', text: 'text-red-900', icon: '🚨' }
     };
     return styles[risk] || styles.normal;
   };
@@ -159,8 +159,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Get no data styling
   const getNoDataStyle = () => {
     return {
-      bg: 'bg-gray-100',
-      text: 'text-gray-800',
+      bg: 'bg-gray-600',
+      text: 'text-white-900',
       icon: '—',
       label: 'No Data'
     };
