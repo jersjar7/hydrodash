@@ -76,7 +76,7 @@ const MapPanel: React.FC<MapPanelProps> = ({
 
       {/* Map Controls Overlay */}
       {controls && (
-        <div className="absolute top-4 right-10 z-20 pointer-events-none">
+        <div className="absolute top-6 right-10 z-20 pointer-events-none">
           <div className="pointer-events-auto">
             {controls}
           </div>
