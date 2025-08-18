@@ -10,6 +10,7 @@ import SidebarOverlay from '@/components/Layout/SidebarOverlay';
 import MapPanel from '@/components/Layout/MapPanel';
 import DashboardPanel from '@/components/Layout/DashboardPanel';
 import Sidebar from '@/components/Layout/Sidebar';
+import SidebarToggle from '@/components/Sidebar/SidebarToggle';
 import type { RiverReach, ReachId } from '@/types';
 
 // Types for our app state
@@ -421,6 +422,41 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 isMobile={isMobile}
               />
             </SidebarOverlay>
+
+            {/* Floating Sidebar Toggle - Only visible when sidebar is closed */}
+            {!sidebarOpen && (
+              <div 
+                className={`
+                  fixed z-50 
+                  transition-all duration-500 ease-out
+                  animate-in fade-in slide-in-from-left-4
+                  ${!sidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}
+                `}
+                style={{
+                  top: '180px',
+                  left: '16px',
+                }}
+              >
+                <SidebarToggle
+                isOpen={false}
+                onToggle={() => setSidebarOpen(true)}
+                size="md"
+                variant="panel"
+                className={`
+                  shadow-lg border border-white/20
+                  bg-black/40 backdrop-blur-md
+                  hover:bg-white/20 hover:shadow-xl hover:scale-105 hover:text-white
+                  focus:bg-white/20 focus:shadow-xl focus:scale-105
+                  focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-transparent
+                  active:scale-95
+                  transition-all duration-200 ease-out
+                  group
+                `}
+                aria-label="Open sidebar navigation"
+                data-testid="floating-sidebar-toggle"
+              />
+              </div>
+            )}
 
             {/* Main Content */}
             <MainViewport>

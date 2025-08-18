@@ -145,7 +145,6 @@ const MapScreen = () => {
       lat: streamData.lat,
       lon: streamData.lon,
       createdAt: new Date().toISOString(),
-      type: 'recreation',
     };
     
     addSavedPlace(newSavedPlace);
@@ -161,7 +160,6 @@ const MapScreen = () => {
       lat: streamData.lat,
       lon: streamData.lon,
       createdAt: new Date().toISOString(),
-      type: 'other',
     };
     
     setActiveLocation(tempLocation);
@@ -186,7 +184,7 @@ const MapScreen = () => {
       controls={
         <SearchBar 
           map={map}
-          placeholder="Search for rivers or places..."
+          placeholder="Search for places..."
           className="w-auto min-w-74 absolute top-4 z-10"
         />
       }
