@@ -1,7 +1,7 @@
 // components/sidebar/SavedPlacesList.tsx
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { FlowUnit } from '@/types/models/UserPreferences';
 import { RiskLevel } from '@/types/models/FlowForecast';
@@ -10,6 +10,14 @@ import { useAppContext } from '@/components/Layout/AppShell';
 import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useShortRangeForecast, getCurrentFlow, getPeakFlow } from '@/hooks/useFlowData';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+
+// Video mapping for each risk level
+const FLOW_VIDEOS = {
+  normal: 'public/assets/video/Elevated-Flow.mp4',
+  elevated: 'public/assets/video/Elevated-Flow.mp4',
+  high: 'public/assets/video/Elevated-Flow.mp4',
+  flood: 'public/assets/video/Elevated-Flow.mp4'
+} as const;
 
 // Data structure for flow information per location
 interface LocationFlowData {
@@ -46,6 +54,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   // Use individual flow data hook for this place (only if showFlowData is true)
   const {
     data: flowData,
@@ -62,6 +72,26 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const peakFlow = getPeakFlow(flowData);
   const riskLevel = flowData?.risk || 'normal';
 
+  // Handle video loading and playback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      video.play().catch(console.error);
+    };
+
+    video.addEventListener('canplay', handleCanPlay);
+    
+    // Load the video source
+    video.src = FLOW_VIDEOS[riskLevel];
+    video.load();
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [riskLevel]);
+
   // Format flow value with proper units
   const formatFlow = (flow: number | null): string => {
     if (flow === null) return '--';
@@ -77,10 +107,10 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Get risk level styling
   const getRiskLevelStyle = (risk: RiskLevel) => {
     const styles = {
-      normal: { bg: 'bg-green-100 dark:bg-green-900/20', text: 'text-green-800 dark:text-green-200', icon: '✓' },
-      elevated: { bg: 'bg-yellow-100 dark:bg-yellow-900/20', text: 'text-yellow-800 dark:text-yellow-200', icon: '⚠️' },
-      high: { bg: 'bg-orange-100 dark:bg-orange-900/20', text: 'text-orange-800 dark:text-orange-200', icon: '🔶' },
-      flood: { bg: 'bg-red-100 dark:bg-red-900/20', text: 'text-red-800 dark:text-red-200', icon: '🚨' }
+      normal: { bg: 'bg-green-100', text: 'text-green-800', icon: '✓' },
+      elevated: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '⚠️' },
+      high: { bg: 'bg-orange-100', text: 'text-orange-800', icon: '🔶' },
+      flood: { bg: 'bg-red-100', text: 'text-red-800', icon: '🚨' }
     };
     return styles[risk] || styles.normal;
   };
@@ -98,127 +128,137 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
     return { direction: 'stable', icon: '→', color: 'text-gray-600' };
   };
 
-  // Create mini-chart data for flow visualization
-  const getMiniChartData = () => {
-    if (!flowData?.series?.[0]?.points) return [];
-    
-    return flowData.series[0].points.slice(0, 12).map(point => point.q || 0);
-  };
-
   const riskStyle = getRiskLevelStyle(riskLevel);
   const trend = getFlowTrend();
-  const miniChartData = getMiniChartData();
 
   return (
     <div
       onClick={() => onSelect(place)}
       className={`
-        p-3 rounded-lg border cursor-pointer transition-all duration-200
+        relative p-3 rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
         ${isActive 
-          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md' 
-          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+          ? 'border-blue-500 shadow-md' 
+          : 'border-gray-200 hover:border-gray-300'
         }
       `}
     >
-    {/* Header */}
-    <div className="flex items-start justify-between mb-2">
-      <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-medium text-white truncate">
-          {place.name}
-        </h4>
-        {place.isPrimary && (
-          <div className="flex items-center mt-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mr-1" />
-            <span className="text-xs text-white">Primary</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Actions */}
-      <div className="flex items-center space-x-1 ml-2">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(place);
-          }}
-          className="p-1 text-white hover:text-white"
-          title="Edit place"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(place);
-          }}
-          className="p-1 text-white hover:text-white"
-          title="Remove place"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
-    </div>
+      {/* Video Background */}
+      {place.reachId && showFlowData && !flowLoading && !flowError && (
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+        />
+      )}
 
-    {/* Flow Data Section */}
-    {place.reachId && showFlowData && (
-      <div className="space-y-2">
-        {/* Current Flow */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white">Current Flow</span>
-          {flowLoading ? (
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-          ) : flowError ? (
-            <span className="text-xs text-white">Error</span>
-          ) : (
-            <div className="flex items-center space-x-1">
-              <span className="text-sm font-semibold text-gray-900">
-                {formatFlow(currentFlow)}
-              </span>
-              {trend && (
-                <span className={`text-xs ${trend.color}`} title={`Flow ${trend.direction}`}>
-                  {trend.icon}
+      {/* Overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-black/20 rounded-lg" />
+
+      {/* Content Container */}
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium text-white truncate drop-shadow-sm">
+              {place.name}
+            </h4>
+          </div>
+          
+          {/* Actions */}
+          <div className="flex items-center space-x-1 ml-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(place);
+              }}
+              className="p-1 text-white hover:text-white bg-black/20 hover:bg-black/40 rounded transition-colors"
+              title="Edit place"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(place);
+              }}
+              className="p-1 text-white hover:text-white bg-black/20 hover:bg-black/40 rounded transition-colors"
+              title="Remove place"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Flow Data Section */}
+        {place.reachId && showFlowData && (
+          <div className="space-y-2">
+            {/* Current Flow */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white drop-shadow-sm">Current Flow</span>
+              {flowLoading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : flowError ? (
+                <span className="text-xs text-white drop-shadow-sm">Error</span>
+              ) : (
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-semibold text-white drop-shadow-sm">
+                    {formatFlow(currentFlow)}
+                  </span>
+                  {trend && (
+                    <span className={`text-xs ${trend.color} drop-shadow-sm`} title={`Flow ${trend.direction}`}>
+                      {trend.icon}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Risk Level */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white drop-shadow-sm">Risk Level</span>
+              {flowLoading ? (
+                <div className="w-12 h-4 bg-white/20 rounded animate-pulse" />
+              ) : (
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
+                  {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel}
                 </span>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Risk Level */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-white">Risk Level</span>
-          {flowLoading ? (
-            <div className="w-12 h-4 bg-gray-200 rounded animate-pulse" />
-          ) : (
-            <span className={`px-2 py-0.5 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text}`}>
-              {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel}
-            </span>
-          )}
-        </div>
-
-        {/* Data freshness */}
-        {!flowLoading && flowData?.series?.[0]?.points?.[0] && (
-          <div className="text-xs text-white text-right">
-            Updated: {new Date(flowData.series[0].points[0].t).toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
+            {/* Data freshness */}
+            {!flowLoading && flowData?.series?.[0]?.points?.[0] && (
+              <div className="text-xs text-white drop-shadow-sm text-right">
+                Updated: {new Date(flowData.series[0].points[0].t).toLocaleTimeString([], { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+            )}
           </div>
         )}
-      </div>
-    )}
 
-    {/* No reach ID warning */}
-    {!place.reachId && showFlowData && (
-      <div className="text-xs text-white italic">
-        No flow data available
+        {/* No reach ID warning */}
+        {!place.reachId && showFlowData && (
+          <div className="text-xs text-white italic drop-shadow-sm">
+            No flow data available
+          </div>
+        )}
+
+        {/* Static background for cards without flow data */}
+        {(!place.reachId || !showFlowData || flowLoading || flowError) && (
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-lg -z-10" />
+        )}
       </div>
-    )}
-  </div>
-);
+    </div>
+  );
 };
 
 // Main SavedPlacesList component
@@ -281,7 +321,6 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
       console.log(`Removed saved place: ${place.name}`);
     } catch (error) {
       console.error('Failed to remove place:', error);
-      // Could show a toast notification here
     }
   };
 
@@ -324,16 +363,16 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+        <p className="text-sm text-white mb-3">
           Failed to load saved places
         </p>
-        <p className="text-xs text-red-600 dark:text-red-400 mb-3">
+        <p className="text-xs text-white mb-3">
           {error}
         </p>
         {onAddPlace && (
           <button
             onClick={handleAddPlace}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-sm text-white hover:text-white"
           >
             Try adding a place
           </button>
@@ -352,16 +391,16 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+        <h3 className="text-sm font-medium text-white mb-1">
           No saved places
         </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        <p className="text-xs text-white mb-4">
           Add locations from the map to monitor flow and weather conditions
         </p>
         {showAddButton && onAddPlace && canAddMore() && (
           <button
             onClick={handleAddPlace}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-white/20 hover:bg-white/30 transition-colors"
           >
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -382,7 +421,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
 
   return (
     <div className={`flex h-full min-h-0 flex-col space-y-3 ${className}`}>
-      {/* Places List with Individual Flow Data */}
+      {/* Places List with Video Backgrounds */}
       <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
         {sortedPlaces.map((place) => (
           <SavedPlaceCard
@@ -400,7 +439,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
 
       {/* Max places warning */}
       {!canAddMore() && (
-        <div className="text-xs text-amber-600 dark:text-amber-400 text-center py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+        <div className="text-xs text-white text-center py-2 bg-white/20 rounded-lg">
           Maximum number of saved places reached (20)
         </div>
       )}
