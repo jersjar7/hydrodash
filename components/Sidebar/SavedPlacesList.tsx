@@ -1,7 +1,7 @@
 // components/sidebar/SavedPlacesList.tsx
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { FlowUnit } from '@/types/models/UserPreferences';
 import { RiskLevel } from '@/types/models/FlowForecast';
@@ -13,10 +13,10 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 // Video mapping for each risk level
 const FLOW_VIDEOS = {
-  normal: 'public/assets/video/Elevated-Flow.mp4',
-  elevated: 'public/assets/video/Elevated-Flow.mp4',
-  high: 'public/assets/video/Elevated-Flow.mp4',
-  flood: 'public/assets/video/Elevated-Flow.mp4'
+  normal: '/assets/video/High-Flow.mp4',
+  elevated: '/assets/video/Elevated-Flow.mp4',
+  high: '/assets/video/High-Flow.mp4',
+  flood: '/assets/video/Flood-Flow.mp4'
 } as const;
 
 // Data structure for flow information per location
@@ -55,6 +55,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   onDelete,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   // Use individual flow data hook for this place (only if showFlowData is true)
   const {
@@ -75,22 +77,47 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Handle video loading and playback
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !place.reachId || !showFlowData) return;
 
     const handleCanPlay = () => {
-      video.play().catch(console.error);
+      setVideoLoaded(true);
+      setVideoError(false);
+      video.play().catch((error) => {
+        console.warn('Video autoplay failed:', error);
+        // This is common and expected in many browsers, not a real error
+      });
     };
 
+    const handleError = (e: Event) => {
+      console.error('Video loading error:', e);
+      console.error('Video source:', video.src);
+      console.error('Risk level:', riskLevel);
+      setVideoError(true);
+      setVideoLoaded(false);
+    };
+
+    const handleLoadStart = () => {
+      setVideoLoaded(false);
+      setVideoError(false);
+    };
+
+    // Add event listeners
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
+    video.addEventListener('loadstart', handleLoadStart);
     
-    // Load the video source
-    video.src = FLOW_VIDEOS[riskLevel];
+    // Set video source and load
+    const videoSrc = FLOW_VIDEOS[riskLevel];
+    console.log(`Loading video for ${place.name} (${riskLevel}):`, videoSrc);
+    video.src = videoSrc;
     video.load();
 
     return () => {
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('loadstart', handleLoadStart);
     };
-  }, [riskLevel]);
+  }, [riskLevel, place.reachId, showFlowData, place.name]);
 
   // Format flow value with proper units
   const formatFlow = (flow: number | null): string => {
@@ -131,6 +158,9 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const riskStyle = getRiskLevelStyle(riskLevel);
   const trend = getFlowTrend();
 
+  // Determine if we should show video
+  const shouldShowVideo = place.reachId && showFlowData;
+
   return (
     <div
       onClick={() => onSelect(place)}
@@ -142,17 +172,32 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
         }
       `}
     >
-      {/* Video Background */}
-      {place.reachId && showFlowData && !flowLoading && !flowError && (
+      {/* Video Background - Show whenever we have reachId and showFlowData is true */}
+      {shouldShowVideo && (
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover opacity-60"
+          className={`
+            absolute inset-0 w-full h-full object-cover transition-opacity duration-300
+            ${videoLoaded && !videoError ? 'opacity-60' : 'opacity-0'}
+          `}
           autoPlay
           loop
           muted
           playsInline
           preload="metadata"
         />
+      )}
+
+      {/* Video Loading Indicator */}
+      {shouldShowVideo && !videoLoaded && !videoError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-lg flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Fallback Background - Show when video is not available or failed */}
+      {(!shouldShowVideo || videoError) && (
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-lg" />
       )}
 
       {/* Overlay for better text readability */}
@@ -199,49 +244,45 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
 
         {/* Flow Data Section */}
         {place.reachId && showFlowData && (
-          <div className="space-y-2">
-            {/* Current Flow */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white drop-shadow-sm">Current Flow</span>
+          <div className="space-y-3">
+            {/* Main Flow Display - Prominent */}
+            <div className="text-center">
               {flowLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="flex justify-center">
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                </div>
               ) : flowError ? (
-                <span className="text-xs text-white drop-shadow-sm">Error</span>
+                <span className="text-lg font-bold text-white drop-shadow-sm">Error</span>
               ) : (
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-semibold text-white drop-shadow-sm">
+                <div className="flex items-center justify-center space-x-2">
+                  <span className="text-2xl font-bold text-white drop-shadow-sm">
                     {formatFlow(currentFlow)}
                   </span>
-                  {trend && (
-                    <span className={`text-xs ${trend.color} drop-shadow-sm`} title={`Flow ${trend.direction}`}>
-                      {trend.icon}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* Risk Level */}
+            {/* Bottom Row - Risk Level and Updated Time */}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-white drop-shadow-sm">Risk Level</span>
+              {/* Risk Level */}
               {flowLoading ? (
-                <div className="w-12 h-4 bg-white/20 rounded animate-pulse" />
+                <div className="w-16 h-5 bg-white/20 rounded animate-pulse" />
               ) : (
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
-                  {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel}
+                <span className={`px-2 py-1 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
+                  {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel.toUpperCase()}
                 </span>
               )}
-            </div>
 
-            {/* Data freshness */}
-            {!flowLoading && flowData?.series?.[0]?.points?.[0] && (
-              <div className="text-xs text-white drop-shadow-sm text-right">
-                Updated: {new Date(flowData.series[0].points[0].t).toLocaleTimeString([], { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </div>
-            )}
+              {/* Data freshness */}
+              {!flowLoading && flowData?.series?.[0]?.points?.[0] && (
+                <div className="text-xs text-white drop-shadow-sm">
+                  Updated {new Date(flowData.series[0].points[0].t).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -250,11 +291,6 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
           <div className="text-xs text-white italic drop-shadow-sm">
             No flow data available
           </div>
-        )}
-
-        {/* Static background for cards without flow data */}
-        {(!place.reachId || !showFlowData || flowLoading || flowError) && (
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-lg -z-10" />
         )}
       </div>
     </div>
@@ -376,7 +412,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
           >
             Try adding a place
           </button>
-        )}
+          )}
       </div>
     );
   }
