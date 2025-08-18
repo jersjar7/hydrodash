@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 // Video mapping for each risk level
 const FLOW_VIDEOS = {
+  no_data: '/assets/video/Flood-Flow.mp4',
   normal: '/assets/video/High-Flow.mp4',
   elevated: '/assets/video/Elevated-Flow.mp4',
   high: '/assets/video/High-Flow.mp4',
@@ -75,6 +76,9 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const peakFlow = getPeakFlow(flowData);
   const riskLevel = flowData?.risk || 'normal';
 
+  // Determine if we have valid flow data
+  const hasFlowData = currentFlow !== null && !flowError;
+
   // Track when data was last fetched
   useEffect(() => {
     if (!flowLoading && flowData && !flowError) {
@@ -114,9 +118,11 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
     video.addEventListener('error', handleError);
     video.addEventListener('loadstart', handleLoadStart);
     
-    // Set video source and load
-    const videoSrc = FLOW_VIDEOS[riskLevel];
-    console.log(`Loading video for ${place.name} (${riskLevel}):`, videoSrc);
+    // Use normal video when no data, otherwise use risk-appropriate video
+    // Calculate hasFlowData here to avoid dependency array size changes
+    const hasValidFlowData = currentFlow !== null && !flowError;
+    const videoSrc = hasValidFlowData ? FLOW_VIDEOS[riskLevel] : FLOW_VIDEOS.no_data;
+    console.log(`Loading video for ${place.name} (${hasValidFlowData ? riskLevel : 'no-data'}):`, videoSrc);
     video.src = videoSrc;
     video.load();
 
@@ -125,7 +131,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
       video.removeEventListener('error', handleError);
       video.removeEventListener('loadstart', handleLoadStart);
     };
-  }, [riskLevel, place.reachId, showFlowData, place.name]);
+  }, [riskLevel, place.reachId, showFlowData, place.name, currentFlow, flowError]);
 
   // Format flow value with proper units
   const formatFlow = (flow: number | null): string => {
@@ -150,6 +156,16 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
     return styles[risk] || styles.normal;
   };
 
+  // Get no data styling
+  const getNoDataStyle = () => {
+    return {
+      bg: 'bg-gray-100',
+      text: 'text-gray-800',
+      icon: '—',
+      label: 'No Data'
+    };
+  };
+
   // Calculate simple flow trend
   const getFlowTrend = () => {
     if (!flowData?.series?.[0]?.points || flowData.series[0].points.length < 2) return null;
@@ -164,6 +180,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   };
 
   const riskStyle = getRiskLevelStyle(riskLevel);
+  const noDataStyle = getNoDataStyle();
   const trend = getFlowTrend();
 
   // Determine if we should show video
@@ -275,6 +292,10 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
               {/* Risk Level */}
               {flowLoading ? (
                 <div className="w-16 h-5 bg-white/20 rounded animate-pulse" />
+              ) : !hasFlowData ? (
+                <span className={`px-2 py-1 rounded text-xs font-medium ${noDataStyle.bg} ${noDataStyle.text} shadow-sm`}>
+                  {noDataStyle.icon} {noDataStyle.label}
+                </span>
               ) : (
                 <span className={`px-2 py-1 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
                   {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel.toUpperCase()}

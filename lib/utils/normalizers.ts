@@ -65,6 +65,17 @@ function readFlowCms(p: RawNoaaPoint): number {
   return cms;
 }
 
+/** 
+ * Check if a flow value is valid (not a sentinel/missing data value)
+ * NOAA uses -9999 CFS as missing data, which converts to ~-283 CMS
+ * Since flow can't be negative, we just filter all negative values
+ */
+function isValidFlowValue(cms: number): boolean {
+  if (!Number.isFinite(cms)) return false;
+  if (cms < 0) return false;  // Catches -9999 CFS (→ -283 CMS) and other invalid negatives
+  return true;
+}
+
 /** Normalize a list of raw NOAA points → sorted, deduped NormalizedPoint[] in CFS. */
 export function normalizeNoaaPoints(raw: RawNoaaSeries): NormalizedPoint[] {
   const arr: RawNoaaPoint[] = Array.isArray((raw as any)?.points)
@@ -79,7 +90,9 @@ export function normalizeNoaaPoints(raw: RawNoaaSeries): NormalizedPoint[] {
   for (const p of arr) {
     const t = readTime(p);
     const cms = readFlowCms(p);
-    if (!t || !Number.isFinite(cms)) continue;
+    
+    // Filter out invalid timestamps and flow values (including -9999 sentinel)
+    if (!t || !isValidFlowValue(cms)) continue;
 
     const q = cmsToCfs(cms);
     dedup.set(t, { t, q }); // last one wins for a given timestamp
