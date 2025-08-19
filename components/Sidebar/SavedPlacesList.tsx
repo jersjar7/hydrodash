@@ -534,24 +534,6 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
 
   return (
     <div className={`flex h-full min-h-0 flex-col space-y-3 ${className}`}>
-      {/* ✅ NEW: Return periods status indicator */}
-      {showFlowData && reachIds.length > 0 && (
-        <div className="text-xs text-white/60 text-center py-1">
-          {returnPeriodsLoading ? (
-            <span className="flex items-center justify-center space-x-1">
-              <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Loading flood thresholds...</span>
-            </span>
-          ) : returnPeriodsError ? (
-            <span className="text-orange-400">⚠️ Using estimated flood levels</span>
-          ) : hasReturnPeriodsData ? (
-            <span className="text-green-400">✓ Using scientific flood thresholds</span>
-          ) : (
-            <span className="text-gray-400">— No flood threshold data</span>
-          )}
-        </div>
-      )}
-
       {/* Places List with Video Backgrounds */}
       <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
         {sortedPlaces.map((place) => {
