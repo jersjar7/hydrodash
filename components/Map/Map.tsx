@@ -279,7 +279,28 @@ const Map: React.FC<MapProps> = ({
               });
             }
 
-            // 2) Add a line layer for streams
+            // 2.1) Border layer (add first, renders behind)
+            if (!map.getLayer('streams-line')) {
+              map.addLayer({
+                id: 'streams-border',
+                type: 'line',
+                source: 'streams',
+                'source-layer': sourceLayer,
+                paint: {
+                  'line-color': '#edff28',
+                  'line-width': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    8, 10,
+                    12, 20,
+                    16, 30
+                  ],
+                },
+              });
+            }
+
+            // 2.2) Add a line layer for streams
             if (!map.getLayer('streams-line')) {
               map.addLayer({
                 id: 'streams-line',
@@ -287,14 +308,14 @@ const Map: React.FC<MapProps> = ({
                 source: 'streams',
                 'source-layer': sourceLayer,
                 paint: {
-                  'line-color': '#1e40af',
+                  'line-color': '#cb8dee',
                   'line-width': [
                     'interpolate',
                     ['linear'],
                     ['zoom'],
-                    8, 1,
-                    12, 2,
-                    16, 3
+                    8, 5,
+                    12, 10,
+                    16, 15
                   ],
                 },
               });

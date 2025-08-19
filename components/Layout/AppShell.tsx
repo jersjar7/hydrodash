@@ -139,7 +139,7 @@ const defaultUserPreferences: UserPreferences = {
   refreshInterval: 300000,
   collapsedSidebar: false,
   baseMapLayer: 'standard',
-  mapView: '2D',
+  mapView: '3D',
 };
 
 interface AppShellProps {
