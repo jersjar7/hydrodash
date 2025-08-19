@@ -12,6 +12,7 @@ import { getCurrentFlow } from '@/lib/utils/flow';
 import { useAppContext } from '@/components/Layout/AppShell';
 import StreamSearchOverlay from './StreamSearch/StreamSearchOverlay';
 import type { ReachId } from '@/types';
+import type { BaseMapLayer } from '@/types/models/UserPreferences';
 
 type OnReady = (map: mapboxgl.Map) => void;
 
@@ -56,6 +57,20 @@ interface ErrorMessage {
   show: boolean;
 }
 
+// Map base layer styles mapping
+const getMapboxStyle = (baseLayer: BaseMapLayer): string => {
+  const styleMap: Record<BaseMapLayer, string> = {
+    standard: 'mapbox://styles/mapbox/standard',
+    streets: 'mapbox://styles/mapbox/streets-v12',
+    satellite: 'mapbox://styles/mapbox/satellite-v9',
+    satelliteStreets: 'mapbox://styles/mapbox/satellite-streets-v12',
+    outdoors: 'mapbox://styles/mapbox/outdoors-v12',
+    light: 'mapbox://styles/mapbox/light-v11',
+    dark: 'mapbox://styles/mapbox/dark-v11',
+  };
+  return styleMap[baseLayer];
+};
+
 const Map: React.FC<MapProps> = ({ 
   className,
   onReady,
@@ -83,8 +98,8 @@ const Map: React.FC<MapProps> = ({
     show: false,
   });
   
-  // Get AppShell context for modal management
-  const { openStreamModal } = useAppContext();
+  // Get AppShell context for modal management and preferences
+  const { openStreamModal, userPreferences } = useAppContext();
   
   // Fetch reach metadata when a reach is clicked
   const { 
@@ -162,6 +177,26 @@ const Map: React.FC<MapProps> = ({
     }
   }, [errorMessage.show]);
 
+  // Apply base map layer changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && userPreferences.baseMapLayer) {
+      const newStyle = getMapboxStyle(userPreferences.baseMapLayer);
+      if (map.getStyle().name !== newStyle) {
+        map.setStyle(newStyle);
+      }
+    }
+  }, [userPreferences.baseMapLayer]);
+
+  // Apply 2D/3D view changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && userPreferences.mapView) {
+      const targetPitch = userPreferences.mapView === '3D' ? 60 : 0;
+      map.easeTo({ pitch: targetPitch, duration: 1000 });
+    }
+  }, [userPreferences.mapView]);
+
   // Use external loading/error states if provided, or combine with internal states
   const loading = externalLoading ?? (isLoading || isLoadingReach || isLoadingForecast);
   const displayError = externalError ?? mapError;
@@ -216,15 +251,20 @@ const Map: React.FC<MapProps> = ({
 
       mapboxgl.accessToken = publicToken;
 
+      // Get initial style and view settings from preferences
+      const initialStyle = userPreferences.baseMapLayer 
+        ? getMapboxStyle(userPreferences.baseMapLayer) 
+        : baseStyle;
+      const initialPitch = userPreferences.mapView === '3D' ? 60 : 0;
+
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: baseStyle,
+        style: initialStyle,
         center: [defaultLng, defaultLat],
         zoom: defaultZoom,
-        // Add 3D settings
-        pitch: 60, // Tilt angle (0-60 degrees)
-        bearing: 0, // Rotation angle
-        antialias: true // Smooth 3D rendering
+        pitch: initialPitch,
+        bearing: 0,
+        antialias: true
       });
 
       map.on('load', () => {
@@ -402,7 +442,9 @@ const Map: React.FC<MapProps> = ({
     defaultLng,
     defaultZoom, 
     showStreams,
-    toReachId
+    toReachId,
+    userPreferences.baseMapLayer,
+    userPreferences.mapView
   ]);
 
   // Get map instance (for child components)
