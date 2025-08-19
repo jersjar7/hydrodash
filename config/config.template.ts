@@ -1,3 +1,4 @@
+// config/config.template.ts
 /**
  * Configuration Template for HydroDash
  * Copy this file to config/secrets.local.ts and populate with actual values
@@ -14,6 +15,7 @@ export const config = {
     api: {
       noaaBaseUrl: 'https://api.water.noaa.gov/nwps/v1',
       nwmBaseUrl: 'https://nwm-api.ciroh.org',
+      returnPeriodsBaseUrl: 'YOUR_RETURN_PERIODS_API_BASE_URL',
     },
     map: {
       defaultCenter: { lat: 40.7128, lng: -74.0060 }, // Default to NYC
@@ -48,6 +50,9 @@ YOUR_MAPKIT_PRIVATE_KEY_HERE
 YOUR_WEATHERKIT_PRIVATE_KEY_HERE
 -----END PRIVATE KEY-----`,
       },
+    },
+    api: {
+      returnPeriodsApiKey: 'YOUR_RETURN_PERIODS_API_KEY',
     },
     // Add other service keys as needed
     analytics: {

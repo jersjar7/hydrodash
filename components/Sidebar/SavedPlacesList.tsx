@@ -5,10 +5,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { FlowUnit } from '@/types/models/UserPreferences';
 import { RiskLevel } from '@/types/models/FlowForecast';
+import { ReturnPeriodThresholds } from '@/types/models/ReturnPeriod';
 import { WeatherData } from '@/components/display/WeatherSummary';
 import { useAppContext } from '@/components/Layout/AppShell';
 import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useShortRangeForecast, getCurrentFlow, getPeakFlow } from '@/hooks/useFlowData';
+import { useReturnPeriods } from '@/hooks/useReturnPeriods';
+import { computeRisk } from '@/lib/utils/riskCalculator';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 // Video mapping for each risk level
@@ -44,6 +47,9 @@ interface SavedPlaceCardProps {
   onSelect: (place: SavedPlace) => void;
   onEdit: (place: SavedPlace) => void;
   onDelete: (place: SavedPlace) => void;
+  // New props for return periods integration
+  returnPeriods?: ReturnPeriodThresholds | null;
+  returnPeriodsLoading?: boolean;
 }
 
 const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
@@ -54,6 +60,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   onSelect,
   onEdit,
   onDelete,
+  returnPeriods,
+  returnPeriodsLoading,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -74,7 +82,36 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Extract flow metrics
   const currentFlow = getCurrentFlow(flowData);
   const peakFlow = getPeakFlow(flowData);
-  const riskLevel = flowData?.risk || 'normal';
+  
+  // ✅ NEW: Compute proper risk level using return periods
+  const riskLevel = (() => {
+    console.log(`[SavedPlaceCard] Risk calculation for ${place.name}:`);
+    console.log(`[SavedPlaceCard] - currentFlow:`, currentFlow);
+    console.log(`[SavedPlaceCard] - returnPeriods:`, returnPeriods);
+    console.log(`[SavedPlaceCard] - returnPeriodsLoading:`, returnPeriodsLoading);
+    console.log(`[SavedPlaceCard] - flowData?.risk:`, flowData?.risk);
+    
+    // If we have both current flow and return periods, use proper classification
+    if (currentFlow !== null && returnPeriods && !returnPeriodsLoading) {
+      try {
+        const computedRisk = computeRisk(currentFlow, returnPeriods);
+        console.log(`[SavedPlaceCard] - computedRisk:`, computedRisk);
+        console.log(`[SavedPlaceCard] - RP2: ${returnPeriods.rp2}, RP10: ${returnPeriods.rp10}, RP25: ${returnPeriods.rp25}`);
+        return computedRisk;
+      } catch (error) {
+        console.warn(`Failed to compute risk for ${place.name}:`, error);
+        // Fall back to flow data risk if computation fails
+        const fallbackRisk = flowData?.risk || 'normal';
+        console.log(`[SavedPlaceCard] - fallbackRisk:`, fallbackRisk);
+        return fallbackRisk;
+      }
+    }
+    
+    // Fallback to the original flow data risk when return periods unavailable
+    const fallbackRisk = flowData?.risk || 'normal';
+    console.log(`[SavedPlaceCard] - Using fallback risk:`, fallbackRisk);
+    return fallbackRisk;
+  })();
 
   // Determine if we have valid flow data
   const hasFlowData = currentFlow !== null && !flowError;
@@ -186,6 +223,9 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Determine if we should show video
   const shouldShowVideo = place.reachId && showFlowData;
 
+  // ✅ NEW: Determine if we're using proper risk calculation
+  const usingProperRiskCalculation = currentFlow !== null && returnPeriods && !returnPeriodsLoading;
+
   return (
     <div
       onClick={() => onSelect(place)}
@@ -236,6 +276,23 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
             <h4 className="text-sm font-medium text-white truncate drop-shadow-sm">
               {place.name}
             </h4>
+            {/* ✅ NEW: Show return periods status indicator */}
+            {place.reachId && showFlowData && (
+              <div className="flex items-center space-x-1 mt-0.5">
+                {returnPeriodsLoading ? (
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Loading flood thresholds..." />
+                ) : returnPeriods ? (
+                  <div className="w-2 h-2 bg-green-400 rounded-full" title="Using scientific flood thresholds" />
+                ) : (
+                  <div className="w-2 h-2 bg-gray-400 rounded-full" title="Using estimated flood levels" />
+                )}
+                <span className="text-xs text-white/80">
+                  {returnPeriodsLoading ? 'Loading thresholds...' : 
+                   returnPeriods ? 'Scientific classification' : 
+                   'Estimated classification'}
+                </span>
+              </div>
+            )}
           </div>
           
           {/* Actions */}
@@ -283,6 +340,15 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
                   <span className="text-2xl font-bold text-white drop-shadow-sm">
                     {formatFlow(currentFlow)}
                   </span>
+                  {/* ✅ NEW: Show return period context when available */}
+                  {returnPeriods && currentFlow !== null && !returnPeriodsLoading && (
+                    <div className="text-xs text-white/80 ml-2" title="Next flood threshold">
+                      {currentFlow < returnPeriods.rp2 && `RP2: ${formatFlow(returnPeriods.rp2)}`}
+                      {currentFlow >= returnPeriods.rp2 && currentFlow < returnPeriods.rp10 && `RP10: ${formatFlow(returnPeriods.rp10)}`}
+                      {currentFlow >= returnPeriods.rp10 && currentFlow < returnPeriods.rp25 && `RP25: ${formatFlow(returnPeriods.rp25)}`}
+                      {currentFlow >= returnPeriods.rp25 && `RP100: ${formatFlow(returnPeriods.rp100)}`}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -299,6 +365,10 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
               ) : (
                 <span className={`px-2 py-1 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
                   {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel.toUpperCase()}
+                  {/* ✅ NEW: Indicator for proper vs estimated classification */}
+                  {usingProperRiskCalculation && (
+                    <span className="ml-1" title="Based on scientific return period thresholds">⚗️</span>
+                  )}
                 </span>
               )}
 
@@ -372,6 +442,28 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
     autoSave: true,
     maxPlaces: 20, // Reasonable limit for UI performance
   });
+
+  // ✅ NEW: Fetch return periods for all places with reach IDs
+  const reachIds = places.map(p => p.reachId).filter(Boolean);
+  const { 
+    data: returnPeriodsData, 
+    loading: returnPeriodsLoading, 
+    error: returnPeriodsError,
+    getReturnPeriods,
+    hasData: hasReturnPeriodsData
+  } = useReturnPeriods(reachIds, {
+    enabled: showFlowData && reachIds.length > 0
+  });
+
+  // Log return periods status for debugging
+  useEffect(() => {
+    if (hasReturnPeriodsData && !returnPeriodsLoading) {
+      console.log(`[SavedPlacesList] Loaded return periods for ${Object.keys(returnPeriodsData).length}/${reachIds.length} places`);
+    }
+    if (returnPeriodsError) {
+      console.warn('[SavedPlacesList] Return periods error:', returnPeriodsError);
+    }
+  }, [hasReturnPeriodsData, returnPeriodsLoading, returnPeriodsError, returnPeriodsData, reachIds.length]);
 
   // Handle place deletion with confirmation
   const handlePlaceDelete = async (place: SavedPlace) => {
@@ -486,20 +578,50 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
 
   return (
     <div className={`flex h-full min-h-0 flex-col space-y-3 ${className}`}>
+      {/* ✅ NEW: Return periods status indicator */}
+      {showFlowData && reachIds.length > 0 && (
+        <div className="text-xs text-white/60 text-center py-1">
+          {returnPeriodsLoading ? (
+            <span className="flex items-center justify-center space-x-1">
+              <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Loading flood thresholds...</span>
+            </span>
+          ) : returnPeriodsError ? (
+            <span className="text-orange-400">⚠️ Using estimated flood levels</span>
+          ) : hasReturnPeriodsData ? (
+            <span className="text-green-400">✓ Using scientific flood thresholds</span>
+          ) : (
+            <span className="text-gray-400">— No flood threshold data</span>
+          )}
+        </div>
+      )}
+
       {/* Places List with Video Backgrounds */}
       <div className="flex-1 min-h-0 space-y-2 overflow-y-auto">
-        {sortedPlaces.map((place) => (
-          <SavedPlaceCard
-            key={place.id}
-            place={place}
-            isActive={activePlace?.id === place.id}
-            flowUnit={effectiveFlowUnit}
-            showFlowData={showFlowData}
-            onSelect={handlePlaceSelect}
-            onEdit={handlePlaceEdit}
-            onDelete={handlePlaceDelete}
-          />
-        ))}
+        {sortedPlaces.map((place) => {
+          const placeReturnPeriods = place.reachId ? getReturnPeriods(place.reachId) : null;
+          console.log(`[SavedPlacesList] Rendering ${place.name}:`);
+          console.log(`[SavedPlacesList] - reachId:`, place.reachId);
+          console.log(`[SavedPlacesList] - returnPeriods:`, placeReturnPeriods);
+          console.log(`[SavedPlacesList] - returnPeriodsLoading:`, returnPeriodsLoading);
+          console.log(`[SavedPlacesList] - hasReturnPeriodsData:`, hasReturnPeriodsData);
+          
+          return (
+            <SavedPlaceCard
+              key={place.id}
+              place={place}
+              isActive={activePlace?.id === place.id}
+              flowUnit={effectiveFlowUnit}
+              showFlowData={showFlowData}
+              onSelect={handlePlaceSelect}
+              onEdit={handlePlaceEdit}
+              onDelete={handlePlaceDelete}
+              // ✅ NEW: Pass return periods data to each card
+              returnPeriods={placeReturnPeriods}
+              returnPeriodsLoading={returnPeriodsLoading}
+            />
+          );
+        })}
       </div>
 
       {/* Max places warning */}
