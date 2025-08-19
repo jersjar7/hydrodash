@@ -81,12 +81,10 @@ export interface StreamSearchState {
  * Options for querying visible streams
  */
 export interface StreamQueryOptions {
-  /** Include small streams (order 1-2) */
-  includeSmallStreams?: boolean;
+  /** Specific reach IDs to search for */
+  targetReachIds?: string[];
   /** Maximum number of streams to return */
   maxResults?: number;
-  /** Minimum stream order to include */
-  minStreamOrder?: number;
   /** Whether to deduplicate by station ID */
   deduplicate?: boolean;
 }

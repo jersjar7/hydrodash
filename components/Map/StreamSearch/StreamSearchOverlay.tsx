@@ -56,7 +56,6 @@ const StreamSearchOverlay: React.FC<StreamSearchOverlayProps> = ({
     refreshStreams,
     clearSearch,
   } = useStreamSearch(map, {
-    includeSmallStreams,
     maxResults,
     debounceMs: 300,
     minFilterLength: 0,

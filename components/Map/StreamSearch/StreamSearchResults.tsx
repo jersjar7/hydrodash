@@ -41,22 +41,22 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
     <div
       className={`
         absolute top-full left-0 right-0 mt-1 
-        bg-white/95 backdrop-blur-sm 
-        border border-gray-200 rounded-lg 
-        shadow-xl shadow-black/10
+        bg-slate-800/95 backdrop-blur-sm 
+        border border-slate-600 rounded-lg 
+        shadow-xl shadow-black/20
         z-50 ${className}
       `}
       style={{ maxHeight: `${maxHeight}px` }}
       data-testid={testId}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-600">
         <div className="flex items-center space-x-2">
-          <h3 className="text-sm font-medium text-gray-900">
+          <h3 className="text-sm font-medium text-slate-100">
             Streams in Viewport
           </h3>
           {!loading && streams.length > 0 && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            <span className="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded-full">
               {streams.length}
             </span>
           )}
@@ -65,11 +65,11 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+          className="p-1 hover:bg-slate-700 rounded transition-colors disabled:opacity-50"
           title="Refresh streams"
         >
           <svg
-            className={`h-4 w-4 text-gray-400 ${loading ? 'animate-spin' : ''}`}
+            className={`h-4 w-4 text-slate-400 ${loading ? 'animate-spin' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -85,11 +85,11 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
       </div>
 
       {/* Content */}
-      <div className="overflow-y-auto" style={{ maxHeight: `${maxHeight - 60}px` }}>
+      <div className="overflow-y-auto" style={{ maxHeight: `${maxHeight - 90}px` }}>
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="flex items-center space-x-2 text-gray-500">
+            <div className="flex items-center space-x-2 text-slate-400">
               <svg
                 className="animate-spin h-5 w-5"
                 fill="none"
@@ -117,7 +117,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
         {/* Error State */}
         {error && !loading && (
           <div className="p-4">
-            <div className="flex items-start space-x-2 text-amber-600">
+            <div className="flex items-start space-x-2 text-amber-400">
               <svg className="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -127,7 +127,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
               </svg>
               <div>
                 <p className="text-sm font-medium">Query Warning</p>
-                <p className="text-sm">{error}</p>
+                <p className="text-sm text-amber-300">{error}</p>
               </div>
             </div>
           </div>
@@ -135,7 +135,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
 
         {/* Empty State - No streams in viewport */}
         {!loading && !error && streams.length === 0 && !query && (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-8 text-slate-400">
             <svg className="h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -144,7 +144,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
                 d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3"
               />
             </svg>
-            <p className="text-sm font-medium mb-1">No streams found</p>
+            <p className="text-sm font-medium mb-1 text-slate-300">No streams found</p>
             <p className="text-xs text-center max-w-xs">
               Move the map or zoom in to find streams in this area
             </p>
@@ -153,7 +153,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
 
         {/* Empty State - No results for query */}
         {!loading && !error && streams.length === 0 && query && (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-8 text-slate-400">
             <svg className="h-12 w-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -162,7 +162,7 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <p className="text-sm font-medium mb-1">No matching streams</p>
+            <p className="text-sm font-medium mb-1 text-slate-300">No matching streams</p>
             <p className="text-xs text-center max-w-xs">
               No streams found matching "{query}"
             </p>
@@ -186,8 +186,8 @@ const StreamSearchResults: React.FC<StreamSearchResultsProps> = ({
 
       {/* Footer */}
       {!loading && streams.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="w-full px-4 py-2 border-t border-blue-300 bg-slate-800 rounded-b-lg">
+          <p className="text-xs text-slate-400 text-center">
             Click a stream to fly to its location
           </p>
         </div>

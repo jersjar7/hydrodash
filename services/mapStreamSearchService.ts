@@ -65,7 +65,7 @@ class MapStreamSearchService {
     console.log('🔬 Querying visible streams in viewport...');
 
     const layerIds = this.getLayerIds(options);
-    const strategies = this.createQueryStrategies(layerIds);
+    const strategies = this.createQueryStrategies(layerIds, options);
     
     let streams: VisibleStream[] = [];
     let warnings: string[] = [];
@@ -111,19 +111,19 @@ class MapStreamSearchService {
   /**
    * Create query strategies for fallback handling
    */
-  private createQueryStrategies(layerIds: string[]): QueryStrategy[] {
+  private createQueryStrategies(layerIds: string[], options: StreamQueryOptions): QueryStrategy[] {
     return [
       {
         name: 'chunked',
-        execute: () => this.tryChunkedQuery(layerIds),
+        execute: () => this.tryChunkedQuery(layerIds, options),
       },
       {
         name: 'smaller-area',
-        execute: () => this.trySmallerAreaQuery(layerIds),
+        execute: () => this.trySmallerAreaQuery(layerIds, options),
       },
       {
         name: 'center-point',
-        execute: () => this.tryCenterPointQuery(layerIds),
+        execute: () => this.tryCenterPointQuery(layerIds, options),
       },
     ];
   }
@@ -131,7 +131,7 @@ class MapStreamSearchService {
   /**
    * Strategy 1: Query in chunks to handle large viewports
    */
-  private async tryChunkedQuery(layerIds: string[]): Promise<VisibleStream[]> {
+  private async tryChunkedQuery(layerIds: string[], options: StreamQueryOptions): Promise<VisibleStream[]> {
     if (!this.map) throw new Error('Map not initialized');
 
     const canvas = this.map.getCanvas();
@@ -154,7 +154,10 @@ class MapStreamSearchService {
         const chunk = chunks[i];
         const features = await this.map.queryRenderedFeatures(
           [[chunk.minX, chunk.minY], [chunk.maxX, chunk.maxY]],
-          { layers: layerIds }
+          { 
+            layers: layerIds,
+            filter: this.createReachIdFilter(options)
+          }
         );
 
         console.log(`✅ Chunk ${i + 1}: ${features.length} features`);
@@ -178,7 +181,7 @@ class MapStreamSearchService {
   /**
    * Strategy 2: Query smaller central area
    */
-  private async trySmallerAreaQuery(layerIds: string[]): Promise<VisibleStream[]> {
+  private async trySmallerAreaQuery(layerIds: string[], options: StreamQueryOptions): Promise<VisibleStream[]> {
     if (!this.map) throw new Error('Map not initialized');
 
     const canvas = this.map.getCanvas();
@@ -195,7 +198,10 @@ class MapStreamSearchService {
 
     const features = await this.map.queryRenderedFeatures(
       [[bounds.minX, bounds.minY], [bounds.maxX, bounds.maxY]],
-      { layers: layerIds }
+      { 
+        layers: layerIds,
+        filter: this.createReachIdFilter(options)
+      }
     );
 
     console.log(`✅ Smaller area query: ${features.length} features`);
@@ -217,7 +223,7 @@ class MapStreamSearchService {
   /**
    * Strategy 3: Query around center point
    */
-  private async tryCenterPointQuery(layerIds: string[]): Promise<VisibleStream[]> {
+  private async tryCenterPointQuery(layerIds: string[], options: StreamQueryOptions): Promise<VisibleStream[]> {
     if (!this.map) throw new Error('Map not initialized');
 
     const canvas = this.map.getCanvas();
@@ -234,7 +240,10 @@ class MapStreamSearchService {
 
     const features = await this.map.queryRenderedFeatures(
       [[bounds.minX, bounds.minY], [bounds.maxX, bounds.maxY]],
-      { layers: layerIds }
+      { 
+        layers: layerIds,
+        filter: this.createReachIdFilter(options)
+      }
     );
 
     console.log(`✅ Center point query: ${features.length} features`);
@@ -251,6 +260,16 @@ class MapStreamSearchService {
     }
 
     return streams;
+  }
+
+  /**
+   * Create reach ID filter for queryRenderedFeatures
+   */
+  private createReachIdFilter(options: StreamQueryOptions): any[] | undefined {
+    if (options.targetReachIds && options.targetReachIds.length > 0) {
+      return ['in', ['get', 'station_id'], ['literal', options.targetReachIds]];
+    }
+    return undefined;
   }
 
   /**
@@ -305,14 +324,9 @@ class MapStreamSearchService {
   private processStreams(streams: VisibleStream[], options: StreamQueryOptions): VisibleStream[] {
     let processed = [...streams];
 
-    // Filter by minimum stream order
-    if (options.minStreamOrder) {
-      processed = processed.filter(s => s.streamOrder >= options.minStreamOrder!);
-    }
-
-    // Filter out small streams if requested
-    if (!options.includeSmallStreams) {
-      processed = processed.filter(s => s.streamOrder > 2);
+    // Filter by target reach IDs (additional client-side filtering)
+    if (options.targetReachIds && options.targetReachIds.length > 0) {
+      processed = processed.filter(s => options.targetReachIds!.includes(s.stationId));
     }
 
     // Deduplicate (default: true)
@@ -344,17 +358,16 @@ class MapStreamSearchService {
    * Get layer IDs based on options
    */
   private getLayerIds(options: StreamQueryOptions): string[] {
-    const layerIds: string[] = [];
-
-    if (options.includeSmallStreams || options.minStreamOrder === undefined || options.minStreamOrder <= 2) {
-      layerIds.push('streams2-order-1-2');
-    }
-    if (options.minStreamOrder === undefined || options.minStreamOrder <= 4) {
-      layerIds.push('streams2-order-3-4');
-    }
-    layerIds.push('streams2-order-5-plus');
-
-    return layerIds;
+    if (!this.map) return [];
+    
+    // Get all layers that use the streams source
+    const style = this.map.getStyle();
+    const streamLayers = style.layers?.filter(layer => 
+      layer.source === 'streams' && layer.type === 'line'
+    ).map(layer => layer.id) || [];
+    
+    // Return existing stream layers or fall back to known layer
+    return streamLayers.length > 0 ? streamLayers : ['streams-line'];
   }
 
   /**

@@ -51,8 +51,8 @@ const StreamSearchItem: React.FC<StreamSearchItemProps> = ({
 
   // Get stream order label
   const getStreamOrderLabel = (order: number) => {
-    if (order <= 2) return 'Small';
-    if (order <= 4) return 'Medium';
+    if (order <= 4) return 'Small';
+    if (order <= 6) return 'Medium';
     return 'Large';
   };
 
@@ -61,7 +61,7 @@ const StreamSearchItem: React.FC<StreamSearchItemProps> = ({
       onClick={onClick}
       className={`
         w-full px-4 py-3 text-left 
-        hover:bg-blue-50 focus:bg-blue-50 
+        hover:bg-blue-800 focus:bg-blue-50 
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset
         transition-colors duration-150
         border-b border-gray-100 last:border-b-0
@@ -73,26 +73,12 @@ const StreamSearchItem: React.FC<StreamSearchItemProps> = ({
         {/* Stream Info */}
         <div className="flex-1 min-w-0">
           {/* Station ID */}
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {highlightText(stream.stationId, query)}
+          <div className="text-sm font-medium text-white truncate">
+            Stream {highlightText(stream.stationId, query)}
           </div>
 
-          {/* Reach ID (if different) */}
-          {String(stream.reachId) !== stream.stationId && (
-            <div className="text-xs text-gray-500 truncate">
-              Reach: {highlightText(String(stream.reachId), query)}
-            </div>
-          )}
-
-          {/* Stream Name (if available) */}
-          {stream.name && (
-            <div className="text-xs text-gray-600 truncate mt-1">
-              {highlightText(stream.name, query)}
-            </div>
-          )}
-
           {/* Coordinates */}
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-xs text-gray-300 mt-1">
             {stream.latitude.toFixed(4)}, {stream.longitude.toFixed(4)}
           </div>
         </div>
@@ -132,7 +118,7 @@ const StreamSearchItem: React.FC<StreamSearchItemProps> = ({
             d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span className="text-xs text-gray-500 ml-1">Click to navigate</span>
+        <span className="text-xs text-gray-400 ml-1">Click to navigate</span>
       </div>
     </button>
   );
