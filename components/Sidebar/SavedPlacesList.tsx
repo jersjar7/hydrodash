@@ -203,22 +203,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
     };
   };
 
-  // Calculate simple flow trend
-  const getFlowTrend = () => {
-    if (!flowData?.series?.[0]?.points || flowData.series[0].points.length < 2) return null;
-    
-    const points = flowData.series[0].points;
-    const current = points[0]?.q || 0;
-    const next = points[1]?.q || 0;
-    
-    if (next > current * 1.1) return { direction: 'rising', icon: '↗️', color: 'text-red-600' };
-    if (next < current * 0.9) return { direction: 'falling', icon: '↘️', color: 'text-blue-600' };
-    return { direction: 'stable', icon: '→', color: 'text-gray-600' };
-  };
-
   const riskStyle = getRiskLevelStyle(riskLevel);
   const noDataStyle = getNoDataStyle();
-  const trend = getFlowTrend();
 
   // Determine if we should show video
   const shouldShowVideo = place.reachId && showFlowData;
@@ -276,23 +262,6 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
             <h4 className="text-sm font-medium text-white truncate drop-shadow-sm">
               {place.name}
             </h4>
-            {/* ✅ NEW: Show return periods status indicator */}
-            {place.reachId && showFlowData && (
-              <div className="flex items-center space-x-1 mt-0.5">
-                {returnPeriodsLoading ? (
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Loading flood thresholds..." />
-                ) : returnPeriods ? (
-                  <div className="w-2 h-2 bg-green-400 rounded-full" title="Using scientific flood thresholds" />
-                ) : (
-                  <div className="w-2 h-2 bg-gray-400 rounded-full" title="Using estimated flood levels" />
-                )}
-                <span className="text-xs text-white/80">
-                  {returnPeriodsLoading ? 'Loading thresholds...' : 
-                   returnPeriods ? 'Scientific classification' : 
-                   'Estimated classification'}
-                </span>
-              </div>
-            )}
           </div>
           
           {/* Actions */}
@@ -340,15 +309,6 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
                   <span className="text-2xl font-bold text-white drop-shadow-sm">
                     {formatFlow(currentFlow)}
                   </span>
-                  {/* ✅ NEW: Show return period context when available */}
-                  {returnPeriods && currentFlow !== null && !returnPeriodsLoading && (
-                    <div className="text-xs text-white/80 ml-2" title="Next flood threshold">
-                      {currentFlow < returnPeriods.rp2 && `RP2: ${formatFlow(returnPeriods.rp2)}`}
-                      {currentFlow >= returnPeriods.rp2 && currentFlow < returnPeriods.rp10 && `RP10: ${formatFlow(returnPeriods.rp10)}`}
-                      {currentFlow >= returnPeriods.rp10 && currentFlow < returnPeriods.rp25 && `RP25: ${formatFlow(returnPeriods.rp25)}`}
-                      {currentFlow >= returnPeriods.rp25 && `RP100: ${formatFlow(returnPeriods.rp100)}`}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -365,10 +325,6 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
               ) : (
                 <span className={`px-2 py-1 rounded text-xs font-medium ${riskStyle.bg} ${riskStyle.text} shadow-sm`}>
                   {riskStyle.icon} {riskStyle.icon === '✓' ? 'Normal' : riskLevel.toUpperCase()}
-                  {/* ✅ NEW: Indicator for proper vs estimated classification */}
-                  {usingProperRiskCalculation && (
-                    <span className="ml-1" title="Based on scientific return period thresholds">⚗️</span>
-                  )}
                 </span>
               )}
 

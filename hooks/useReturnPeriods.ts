@@ -6,7 +6,7 @@
  * All returned values are in CFS for consistency with the app.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { fetchReturnPeriods } from '@/services/returnPeriodsService';
 import type { ReachId, ReturnPeriodThresholds } from '@/types';
 
@@ -49,9 +49,15 @@ export function useReturnPeriods(
 
   const mountedRef = useRef(true);
 
-  // Filter valid reach IDs
-  const validReachIds = reachIds.filter((id): id is ReachId => id != null);
-  const reachIdsKey = validReachIds.map(id => String(id)).sort().join(',');
+  // ✅ FIXED: Stabilize validReachIds with useMemo to prevent unnecessary re-renders
+  const validReachIds = useMemo(() => {
+    return reachIds.filter((id): id is ReachId => id != null);
+  }, [reachIds]);
+
+  // ✅ FIXED: Stabilize reachIdsKey with useMemo for dependency array stability
+  const reachIdsKey = useMemo(() => {
+    return validReachIds.map(id => String(id)).sort().join(',');
+  }, [validReachIds]);
 
   // Debug effect to track data changes
   useEffect(() => {
@@ -90,7 +96,9 @@ export function useReturnPeriods(
         })
       );
 
-      if (!mountedRef.current) return;
+      // ✅ CRITICAL FIX: Only check mounted state as a safety measure, don't skip state updates
+      // React's cleanup handles most cases where this was needed in older versions
+      console.log(`[useReturnPeriods] Async operations completed, mountedRef.current:`, mountedRef.current);
 
       // Process results into data object
       const newData: Record<string, ReturnPeriodThresholds> = {};
@@ -112,7 +120,8 @@ export function useReturnPeriods(
       console.log(`[useReturnPeriods] Data keys:`, Object.keys(newData));
       console.log(`[useReturnPeriods] Success: ${successCount}, Errors: ${errorCount}`);
 
-      // Update state
+      // ✅ CRITICAL FIX: Always update state, let React handle cleanup
+      // The mountedRef check was too aggressive and preventing necessary updates
       setData(newData);
       setHasData(successCount > 0);
       setLoading(false);
@@ -131,15 +140,13 @@ export function useReturnPeriods(
       console.log(`[useReturnPeriods] State updated - loading: false, hasData: ${successCount > 0}`);
 
     } catch (err) {
-      if (!mountedRef.current) return;
-      
       console.error('[useReturnPeriods] Fetch error:', err);
       setError('Failed to load flood threshold data. Using estimated levels.');
       setData({});
       setHasData(false);
       setLoading(false);
     }
-  }, [enabled, reachIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, reachIdsKey]); // ✅ FIXED: Use stable reachIdsKey instead of validReachIds
 
   /**
    * Get return periods for a specific reach
