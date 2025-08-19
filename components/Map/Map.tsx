@@ -10,6 +10,7 @@ import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { useShortRangeForecast } from '@/hooks/useFlowData';
 import { getCurrentFlow } from '@/lib/utils/flow';
 import { useAppContext } from '@/components/Layout/AppShell';
+import StreamSearchOverlay from './StreamSearch/StreamSearchOverlay';
 import type { ReachId } from '@/types';
 
 type OnReady = (map: mapboxgl.Map) => void;
@@ -21,7 +22,7 @@ interface MapProps {
   onReady?: OnReady;
   /** Called with reachId (station_id / STATIONID) when user clicks a stream */
   onPickReach?: (reachId: string) => void;
-  /** Map controls/overlays to render */
+  /** Map controls/overlays to render (legacy support) */
   children?: React.ReactNode;
   /** Loading state override */
   loading?: boolean;
@@ -29,6 +30,8 @@ interface MapProps {
   error?: string;
   /** Show stream layers */
   showStreams?: boolean;
+  /** Show stream search overlay */
+  showStreamSearch?: boolean;
   /** Custom data attribute for testing */
   'data-testid'?: string;
 }
@@ -61,6 +64,7 @@ const Map: React.FC<MapProps> = ({
   loading: externalLoading,
   error: externalError,
   showStreams = true,
+  showStreamSearch = true,
   'data-testid': testId,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -280,7 +284,7 @@ const Map: React.FC<MapProps> = ({
             }
 
             // 4) Click handler for stream selection - MODAL APPROACH WITH CURRENT FLOW
-            const clickHandler = (e: mapboxgl.MapLayerMouseEvent) => {
+            const clickHandler = (e: mapboxgl.MapMouseEvent) => {
               const feat = e.features?.[0];
               const props = feat?.properties as Record<string, unknown> | undefined;
               const reachIdString = String(
@@ -502,9 +506,19 @@ const Map: React.FC<MapProps> = ({
           </div>
         )}
         
-        {/* Child Components (controls, overlays, etc.) */}
+        {/* Stream Search Overlay */}
+        {showStreamSearch && (
+          <StreamSearchOverlay
+            map={mapRef.current}
+            topOffset={60}
+            rightOffset={20}
+            leftOffset={500}
+          />
+        )}
+        
+        {/* Legacy Child Components Support - Maintains backward compatibility */}
         {children && (
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none z-50">
             <div className="relative w-full h-full pointer-events-auto">
               {typeof children === 'function' 
                 ? (children as (map: mapboxgl.Map | null) => React.ReactNode)(getMap())
