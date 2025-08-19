@@ -18,6 +18,10 @@ import HydrographWidget from '@/components/widgets/HydrographWidget';
 import FlowSummaryWidget from '@/components/widgets/FlowSummaryWidget';
 import StreamSearchOverlay from '@/components/Map/StreamSearch/StreamSearchOverlay';
 
+// Import new map control components
+import BaseMapSelector from '@/components/Map/BaseMapSelector';
+import ViewToggle from '@/components/Map/ViewToggle';
+
 // Define StreamMetadata interface (matches StreamPopup.tsx)
 interface StreamMetadata {
   reachId: ReachId;
@@ -202,6 +206,14 @@ const MapScreen = () => {
           placeholder="Search for places..."
           className="w-auto min-w-74"
         />
+      }
+
+      /* Map Controls (positioned at bottom-right) */
+      userToolsOverlay={
+        <div className="flex flex-col items-end space-y-3">
+          <ViewToggle />
+          <BaseMapSelector />
+        </div>
       }
     >
       <Map 

@@ -11,7 +11,7 @@ import MapPanel from '@/components/Layout/MapPanel';
 import DashboardPanel from '@/components/Layout/DashboardPanel';
 import Sidebar from '@/components/Layout/Sidebar';
 import SidebarToggle from '@/components/Sidebar/SidebarToggle';
-import type { RiverReach, ReachId } from '@/types';
+import type { RiverReach, ReachId, UserPreferences } from '@/types';
 
 // Types for our app state
 export type AppView = 'map' | 'dashboard';
@@ -42,16 +42,6 @@ export interface StreamModalData {
   lon: number;
   currentFlow?: number;
   metadata?: Record<string, any>;
-}
-
-export interface UserPreferences {
-  flowUnit: 'CFS' | 'CMS';
-  tempUnit: 'F' | 'C';
-  theme: 'light' | 'dark' | 'system';
-  savedPlaceIds: string[];
-  autoRefresh?: boolean;
-  refreshInterval?: number;
-  collapsedSidebar?: boolean;
 }
 
 export interface AppState {
@@ -144,11 +134,12 @@ export const useAppContext = () => {
 const defaultUserPreferences: UserPreferences = {
   flowUnit: 'CFS',
   tempUnit: 'F',
-  theme: 'system',
   savedPlaceIds: [],
   autoRefresh: true,
-  refreshInterval: 300000, // 5 minutes
+  refreshInterval: 300000,
   collapsedSidebar: false,
+  baseMapLayer: 'standard',
+  mapView: '2D',
 };
 
 interface AppShellProps {
@@ -215,34 +206,6 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
     loadUserData();
   }, [activeLocation]);
-
-  // Apply theme to document
-  useEffect(() => {
-    const applyTheme = () => {
-      const { theme } = userPreferences;
-      const root = document.documentElement;
-      
-      if (theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.className = prefersDark ? 'dark' : 'light';
-      } else {
-        root.className = theme;
-      }
-    };
-
-    applyTheme();
-    
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (userPreferences.theme === 'system') {
-        applyTheme();
-      }
-    };
-    
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [userPreferences.theme]);
 
   // Persist user preferences to localStorage
   useEffect(() => {
