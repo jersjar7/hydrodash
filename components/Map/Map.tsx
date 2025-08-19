@@ -30,7 +30,7 @@ interface MapProps {
   error?: string;
   /** Show stream layers */
   showStreams?: boolean;
-  /** Show stream search overlay */
+  /** Show stream search overlay (legacy - use MapPanel overlays instead) */
   showStreamSearch?: boolean;
   /** Custom data attribute for testing */
   'data-testid'?: string;
@@ -225,7 +225,6 @@ const Map: React.FC<MapProps> = ({
         pitch: 60, // Tilt angle (0-60 degrees)
         bearing: 0, // Rotation angle
         antialias: true // Smooth 3D rendering
-
       });
 
       map.on('load', () => {
@@ -506,13 +505,12 @@ const Map: React.FC<MapProps> = ({
           </div>
         )}
         
-        {/* Stream Search Overlay */}
+        {/* FIXED: Only render StreamSearchOverlay when showStreamSearch=true AND not using MapPanel overlays */}
         {showStreamSearch && (
           <StreamSearchOverlay
             map={mapRef.current}
-            topOffset={60}
-            rightOffset={20}
-            leftOffset={500}
+            topOffset={20}
+            inMapPanel={false}
           />
         )}
         

@@ -14,13 +14,13 @@ interface StreamSearchOverlayProps {
   map: mapboxgl.Map | null;
   /** Custom className */
   className?: string;
-  /** Position offset from top in pixels */
+  /** Position offset from top in pixels - only used when NOT in MapPanel */
   topOffset?: number;
-  /** Position offset from bottom in pixels */
+  /** Position offset from bottom in pixels - only used when NOT in MapPanel */
   bottomOffset?: number;
-  /** Position offset from left in pixels */
+  /** Position offset from left in pixels - only used when NOT in MapPanel */
   leftOffset?: number;
-  /** Position offset from right in pixels */
+  /** Position offset from right in pixels - only used when NOT in MapPanel */
   rightOffset?: number;
   /** Show small streams in results */
   includeSmallStreams?: boolean;
@@ -28,18 +28,21 @@ interface StreamSearchOverlayProps {
   maxResults?: number;
   /** Custom data attribute for testing */
   'data-testid'?: string;
+  /** Whether this overlay is being used inside MapPanel (removes positioning) */
+  inMapPanel?: boolean;
 }
 
 const StreamSearchOverlay: React.FC<StreamSearchOverlayProps> = ({
   map,
   className = '',
-  topOffset = 60, // Position below main search bar
+  topOffset = 60,
   bottomOffset,
-  leftOffset = 16, // Default 1rem (16px)
-  rightOffset = 16, // Default 1rem (16px)
+  leftOffset = 0,
+  rightOffset = 16,
   includeSmallStreams = true,
   maxResults = 50,
   'data-testid': testId,
+  inMapPanel = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -120,18 +123,23 @@ const StreamSearchOverlay: React.FC<StreamSearchOverlayProps> = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [state.isOpen, state.query, closeSearch, clearSearch, clearHighlight]);
 
-  // Generate dynamic positioning styles
-  const positionStyle = {
+  // Generate dynamic positioning styles only when NOT in MapPanel
+  const positionStyle = !inMapPanel ? {
     ...(topOffset !== undefined && { top: `${topOffset}px` }),
     ...(bottomOffset !== undefined && { bottom: `${bottomOffset}px` }),
     ...(leftOffset !== undefined && { left: `${leftOffset}px` }),
     ...(rightOffset !== undefined && { right: `${rightOffset}px` }),
-  };
+  } : {};
+
+  // Use different container styling based on whether we're in MapPanel
+  const containerClassName = inMapPanel 
+    ? `${className}` // No positioning when in MapPanel
+    : `absolute z-40 ${className}`; // Absolute positioning when standalone
 
   return (
     <div
       ref={containerRef}
-      className={`absolute z-40 ${className}`}
+      className={containerClassName}
       style={positionStyle}
       data-testid={testId}
     >
@@ -146,7 +154,7 @@ const StreamSearchOverlay: React.FC<StreamSearchOverlayProps> = ({
             clearHighlight();
           }}
           loading={state.isLoading}
-          placeholder="Find stream by Reach ID in this area..."
+          placeholder="Find stream by Reach ID..."
           disabled={!map}
         />
 

@@ -16,6 +16,7 @@ import { SavedPlace } from '@/types/models/SavedPlace';
 import CurrentConditionsWidget from '@/components/widgets/CurrentConditionsWidget';
 import HydrographWidget from '@/components/widgets/HydrographWidget';
 import FlowSummaryWidget from '@/components/widgets/FlowSummaryWidget';
+import StreamSearchOverlay from '@/components/Map/StreamSearch/StreamSearchOverlay';
 
 // Define StreamMetadata interface (matches StreamPopup.tsx)
 interface StreamMetadata {
@@ -181,11 +182,25 @@ const MapScreen = () => {
         />
       ) : undefined}
       onModalBackdropClick={handleCloseModal}
-      controls={
+      
+      /* Stream ID Search Bar (positioned at top-right) */
+      streamSearchOverlay={
+        <StreamSearchOverlay 
+          map={map}
+          includeSmallStreams={true}
+          maxResults={50}
+          className="w-auto min-w-74"
+          data-testid="stream-search-overlay"
+          inMapPanel={true}
+        />
+      }
+      
+      /* Place/Location Search Bar (positioned below stream search) */
+      placeSearchOverlay={
         <SearchBar 
           map={map}
           placeholder="Search for places..."
-          className="w-auto min-w-74 absolute top-4 z-10"
+          className="w-auto min-w-74"
         />
       }
     >
@@ -193,6 +208,7 @@ const MapScreen = () => {
         onReady={setMap} 
         onPickReach={handleStreamClick}
         showStreams={true}
+        showStreamSearch={false}
       />
     </MapPanel>
   );

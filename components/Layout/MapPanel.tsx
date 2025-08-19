@@ -13,8 +13,41 @@ interface MapPanelProps {
   error?: string;
   /** Custom className */
   className?: string;
-  /** Map controls (search, layers, etc.) */
+  
+  // =================================================================================
+  // MAP OVERLAYS - CENTRALIZED POSITIONING CONTROL
+  // =================================================================================
+  // All map overlays should be added here instead of scattered across different files.
+  // This provides a single source of truth for overlay positioning and z-index management.
+  
+  /** Place/location search bar overlay (positioned top-right, below stream search) */
+  placeSearchOverlay?: React.ReactNode;
+  
+  /** Stream ID search bar overlay (positioned top-right, above place search) */
+  streamSearchOverlay?: React.ReactNode;
+  
+  // ADD NEW OVERLAYS HERE:
+  /** Weather overlay */
+  weatherOverlay?: React.ReactNode;
+  
+  /** Layers control overlay */
+  layersOverlay?: React.ReactNode;
+  
+  /** User tools overlay */
+  userToolsOverlay?: React.ReactNode;
+  
+  /** Status/info overlay */
+  statusOverlay?: React.ReactNode;
+  
+  // =================================================================================
+  // LEGACY PROPS - TO BE DEPRECATED
+  // =================================================================================
+  /** @deprecated Use specific overlay props instead */
   controls?: React.ReactNode;
+  
+  // =================================================================================
+  // PANEL & MODAL PROPS
+  // =================================================================================
   /** Bottom panel content (stream info, etc.) */
   bottomPanel?: React.ReactNode;
   /** Show/hide bottom panel */
@@ -30,7 +63,18 @@ const MapPanel: React.FC<MapPanelProps> = ({
   loading = false,
   error,
   className = '',
-  controls,
+  
+  // Map overlays
+  placeSearchOverlay,
+  streamSearchOverlay,
+  weatherOverlay,
+  layersOverlay,
+  userToolsOverlay,
+  statusOverlay,
+  
+
+  
+  // Panels and modals
   bottomPanel,
   showBottomPanel = false,
   modalContent,
@@ -67,23 +111,90 @@ const MapPanel: React.FC<MapPanelProps> = ({
         Z-INDEX HIERARCHY DOCUMENTATION:
         z-0:  Map base layer
         z-10: Bottom panel, map attribution
-        z-20: Map controls, overlays, bottom panel toggle
+        z-20: Map overlays (search bars, controls), bottom panel toggle
         z-30: Loading overlays, error states
-        z-40: Modal backdrops
+        z-40: Modal backdrops, dropdown menus from overlays
         z-50: Modals (stream info, etc.)
         z-60: Modal close buttons, critical overlays
       */}
 
-      {/* Map Controls Overlay */}
-      {controls && (
-        <div className="absolute top-6 right-10 z-20 pointer-events-none">
-          <div className="pointer-events-auto">
-            {controls}
-          </div>
-        </div>
-      )}
+      {/* =================================================================================
+          MAP OVERLAYS - POSITIONED AND CONTROLLED HERE
+          =================================================================================
+          All overlay positioning is managed in this section. When adding new overlays:
+          1. Add the prop to MapPanelProps interface above
+          2. Add positioning here with appropriate z-index
+          3. Update page.tsx to pass the overlay component
+          4. Use pointer-events-none on containers, pointer-events-auto on interactive elements
+      */}
 
-      {/* Main Map Container */}
+      {/* Top-Left Overlay Stack */}
+      <div className="absolute top-4 left-4 z-20 pointer-events-none space-y-3">
+        
+        {/* Status/Info Overlays */}
+        {statusOverlay && (
+          <div className="pointer-events-auto">
+            {statusOverlay}
+          </div>
+        )}
+        
+      </div>
+
+      {/* Top-Right Overlay Stack - Search Bars & Controls */}
+      <div className="absolute top-10 right-4 z-20 pointer-events-none space-y-3">
+        
+        {/* Stream ID Search Overlay (Primary search - positioned first/top) */}
+        {streamSearchOverlay && (
+          <div className="pointer-events-auto">
+            {streamSearchOverlay}
+          </div>
+        )}
+        
+        {/* Place Search Overlay (Secondary search - positioned below) */}
+        {placeSearchOverlay && (
+          <div className="pointer-events-auto">
+            {placeSearchOverlay}
+          </div>
+        )}
+        
+        {/* Layers Control */}
+        {layersOverlay && (
+          <div className="pointer-events-auto">
+            {layersOverlay}
+          </div>
+        )}
+        
+        {/* Weather Control */}
+        {weatherOverlay && (
+          <div className="pointer-events-auto">
+            {weatherOverlay}
+          </div>
+        )}
+        
+      </div>
+
+      {/* Bottom-Left Overlay Stack */}
+      <div className="absolute bottom-20 left-4 z-20 pointer-events-none space-y-3">
+        
+        {/* Add bottom-left overlays here */}
+        
+      </div>
+
+      {/* Bottom-Right Overlay Stack - Tools & Actions */}
+      <div className="absolute bottom-20 right-4 z-20 pointer-events-none space-y-3">
+        
+        {/* User Tools */}
+        {userToolsOverlay && (
+          <div className="pointer-events-auto">
+            {userToolsOverlay}
+          </div>
+        )}
+        
+      </div>
+
+      {/* =================================================================================
+          MAIN MAP CONTAINER
+          ================================================================================= */}
       <div 
         ref={mapContainerRef}
         className="h-full w-full relative z-0"
@@ -99,7 +210,9 @@ const MapPanel: React.FC<MapPanelProps> = ({
         {children}
       </div>
 
-      {/* Bottom Panel */}
+      {/* =================================================================================
+          BOTTOM PANEL
+          ================================================================================= */}
       {bottomPanel && (
         <div 
           className={`
@@ -138,7 +251,9 @@ const MapPanel: React.FC<MapPanelProps> = ({
         </button>
       )}
 
-      {/* Modal Overlay - Stream Info Modal, etc. */}
+      {/* =================================================================================
+          MODAL OVERLAY - Stream Info Modal, etc.
+          ================================================================================= */}
       {modalContent && (
         <>
           {/* Modal Backdrop */}
