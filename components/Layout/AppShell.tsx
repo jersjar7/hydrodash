@@ -358,7 +358,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
         >
           <AppFrame>
             {/* App Title - positioned above sidebar */}
-            <div className="fixed top-10 left-7 z-10">
+            <div className="fixed top-10 left-7 z-60">
               <div className="pr-26 pl-7 pt-0.5 pb-3 -ml-7 mr-40" style={{
                 background: 'radial-gradient(ellipse 400px 150px at left, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.5) 25%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.1) 90%,  transparent 100%)',
               }}>
@@ -390,7 +390,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             {!sidebarOpen && (
               <div 
                 className={`
-                  fixed z-50 
+                  fixed z-60 
                   transition-all duration-500 ease-out
                   animate-in fade-in slide-in-from-left-4
                   ${!sidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}

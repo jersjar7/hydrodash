@@ -56,10 +56,6 @@ interface MapPanelProps {
   modalContent?: React.ReactNode;
   /** Modal backdrop click handler */
   onModalBackdropClick?: () => void;
-  /** Whether sidebar is open (affects modal backdrop positioning) */
-  sidebarOpen?: boolean;
-  /** Sidebar width in pixels (default: 400 to match SidebarOverlay) */
-  sidebarWidth?: number;
 }
 
 const MapPanel: React.FC<MapPanelProps> = ({
@@ -76,15 +72,11 @@ const MapPanel: React.FC<MapPanelProps> = ({
   userToolsOverlay,
   statusOverlay,
   
-
-  
   // Panels and modals
   bottomPanel,
   showBottomPanel = false,
   modalContent,
   onModalBackdropClick,
-  sidebarOpen = false,
-  sidebarWidth = 400,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
@@ -118,10 +110,10 @@ const MapPanel: React.FC<MapPanelProps> = ({
         z-0:  Map base layer
         z-10: Bottom panel, map attribution
         z-20: Map overlays (search bars, controls), bottom panel toggle
-        z-30: Loading overlays, error states
-        z-40: Modal backdrops, dropdown menus from overlays, sidebar (same level)
-        z-50: Modals (stream info, etc.)
-        z-60: Modal close buttons, critical overlays
+        z-30: Loading overlays, error states, MODAL BACKDROP
+        z-40: [Reserved for future use]
+        z-50: Sidebar, Modals (stream info, etc.)
+        z-60: HydroDash title, Floating sidebar toggle, Critical overlays
       */}
 
       {/* =================================================================================
@@ -262,25 +254,15 @@ const MapPanel: React.FC<MapPanelProps> = ({
           ================================================================================= */}
       {modalContent && (
         <>
-          {/* Modal Backdrop - Positioned to avoid sidebar area */}
+          {/* Modal Backdrop - Full screen coverage with proper z-index */}
           <div 
-            className="absolute top-0 bottom-0 right-0 z-40 bg-black/50 backdrop-blur-sm"
-            style={{
-              // ✅ FIXED: Only cover map area, not sidebar area
-              left: sidebarOpen ? `${sidebarWidth}px` : '0px'
-            }}
+            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
             onClick={onModalBackdropClick}
             aria-label="Close modal"
           />
           
-          {/* Modal Container - Positioned to center within available space */}
-          <div 
-            className="absolute top-0 bottom-0 right-0 z-50 flex items-center justify-center p-4 pointer-events-none"
-            style={{
-              // ✅ FIXED: Center modal within non-sidebar area
-              left: sidebarOpen ? `${sidebarWidth}px` : '0px'
-            }}
-          >
+          {/* Modal Container - Centered in full screen */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <div className="pointer-events-auto">
               {modalContent}
             </div>

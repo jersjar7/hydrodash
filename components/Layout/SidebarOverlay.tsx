@@ -36,7 +36,7 @@ export function SidebarOverlay({
   return (
     <aside
       className={`
-        fixed left-0 top-40 bottom-40 z-40
+        fixed left-0 top-40 bottom-40 z-50
         rounded-r-xl border border-gray-200 dark:border-gray-700 shadow-lg
         overflow-hidden transform transition-transform duration-300 will-change-transform
         ${open ? 'translate-x-0' : '-translate-x-full'}
