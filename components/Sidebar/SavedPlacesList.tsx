@@ -16,7 +16,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 // Video mapping for each risk level
 const FLOW_VIDEOS = {
-  no_data: '/assets/video/Flood-Flow.mp4',
+  no_data: '/assets/video/NoData-Flow.mp4',
   normal: '/assets/video/Normal-Flow.mp4',
   elevated: '/assets/video/Elevated-Flow.mp4',
   high: '/assets/video/High-Flow.mp4',
@@ -83,7 +83,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const currentFlow = getCurrentFlow(flowData);
   const peakFlow = getPeakFlow(flowData);
   
-  // ✅ NEW: Compute proper risk level using return periods
+  // Compute proper risk level using return periods
   const riskLevel = (() => {
     console.log(`[SavedPlaceCard] Risk calculation for ${place.name}:`);
     console.log(`[SavedPlaceCard] - currentFlow:`, currentFlow);
@@ -209,7 +209,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Determine if we should show video
   const shouldShowVideo = place.reachId && showFlowData;
 
-  // ✅ NEW: Determine if we're using proper risk calculation
+  // Determine if we're using proper risk calculation
   const usingProperRiskCalculation = currentFlow !== null && returnPeriods && !returnPeriodsLoading;
 
   return (
@@ -303,7 +303,7 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
                   <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 </div>
               ) : flowError ? (
-                <span className="text-lg font-bold text-white drop-shadow-sm">Error</span>
+                <span className="text-lg font-bold text-white drop-shadow-sm">No data at the moment</span>
               ) : (
                 <div className="flex items-center justify-center space-x-2">
                   <span className="text-2xl font-bold text-white drop-shadow-sm">

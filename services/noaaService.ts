@@ -1,9 +1,11 @@
 // services/noaaService.ts
 /**
- * NOAA National Water Model (NWM) service - Focused Range Implementation
+ * NOAA National Water Model (NWM) service - Focused Range Implementation with Retry Logic
  * 
  * This service provides clean, focused functions for fetching different forecast horizons
  * from the NOAA NWPS API. Each range has its own function for modularity and testing.
+ * 
+ * Includes professional retry logic to handle transient API failures gracefully.
  * 
  * API Endpoints Used:
  * - Short Range: 18-hour deterministic forecast (hourly data)
@@ -25,6 +27,111 @@ import type {
 import { publicConfig } from '@/config';
 import { buildNormalizedForecast } from '@/lib/utils/normalizers';
 import { ApiError } from '@/types/utils';
+
+// ========================================
+// Retry Configuration
+// ========================================
+
+interface RetryConfig {
+  maxAttempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+}
+
+// Production-ready retry configuration
+const RETRY_CONFIG: RetryConfig = {
+  maxAttempts: 3,           // Try up to 3 times total
+  baseDelayMs: 1000,        // Start with 1 second delay
+  maxDelayMs: 8000,         // Cap at 8 seconds
+  backoffMultiplier: 2      // Exponential backoff (1s, 2s, 4s)
+};
+
+/**
+ * Professional retry helper with exponential backoff
+ * 
+ * @param operation - Async function to retry
+ * @param operationName - Name for logging purposes
+ * @param config - Retry configuration
+ * @returns Result of the operation
+ * 
+ * This implements industry-standard retry patterns:
+ * - Exponential backoff to avoid overwhelming the API
+ * - Smart error classification (permanent vs transient)
+ * - Comprehensive logging for monitoring
+ * - Type-safe operation handling
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  config: RetryConfig = RETRY_CONFIG
+): Promise<T> {
+  let lastError: Error = new Error(`${operationName} failed with unknown error`);
+  
+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+    try {
+      const result = await operation();
+      
+      // Log successful retry if this wasn't the first attempt
+      if (attempt > 1) {
+        console.log(`✓ ${operationName} succeeded on attempt ${attempt}`);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Don't retry on permanent failures
+      if (shouldNotRetry(error as Error)) {
+        console.warn(`✗ ${operationName} failed permanently: ${lastError.message}`);
+        throw error;
+      }
+      
+      // Log retry attempt (except for the last attempt)
+      if (attempt < config.maxAttempts) {
+        const delayMs = Math.min(
+          config.baseDelayMs * Math.pow(config.backoffMultiplier, attempt - 1),
+          config.maxDelayMs
+        );
+        
+        console.warn(`⚠️ ${operationName} failed on attempt ${attempt}/${config.maxAttempts}: ${lastError.message}`);
+        console.log(`🔄 Retrying in ${delayMs}ms...`);
+        
+        // Exponential backoff delay
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  // All retries exhausted
+  console.error(`❌ ${operationName} failed after ${config.maxAttempts} attempts: ${lastError.message}`);
+  throw lastError;
+}
+
+/**
+ * Determine if an error should NOT be retried (permanent failure)
+ * 
+ * @param error - Error to classify
+ * @returns true if error is permanent and should not be retried
+ */
+function shouldNotRetry(error: Error): boolean {
+  if (error instanceof ApiError) {
+    // Don't retry client errors (4xx) except for rate limiting
+    if (error.statusCode >= 400 && error.statusCode < 500) {
+      // Retry rate limiting (429) but not other 4xx errors
+      return error.statusCode !== 429;
+    }
+  }
+  
+  // Don't retry on timeout (likely a configuration issue)
+  if (error.name === 'AbortError' || error.message.includes('timeout')) {
+    return true;
+  }
+  
+  // Retry all other errors (network issues, 5xx errors, parsing issues)
+  return false;
+}
 
 // ========================================
 // TypeScript Interfaces for NOAA API
@@ -68,11 +175,11 @@ interface NoaaStreamflowResponse {
 }
 
 // ========================================
-// Individual Range Fetch Functions
+// Individual Range Fetch Functions with Retry Logic
 // ========================================
 
 /**
- * Fetch short-range streamflow forecast (18-hour hourly)
+ * Fetch short-range streamflow forecast (18-hour hourly) with retry logic
  * 
  * @param reachId - NOAA reach identifier (e.g., "10376192")
  * @returns Normalized forecast with 'short' horizon
@@ -83,57 +190,49 @@ interface NoaaStreamflowResponse {
  * Temporal resolution: 1 hour
  */
 export async function getShortRangeForecast(reachId: ReachId): Promise<NormalizedFlowForecast> {
-  try {
-    console.log(`Fetching short-range forecast for reach ${reachId}`);
-    
-    // Fetch raw data from NOAA NWPS API
-    const response = await fetchNoaaStreamflow(reachId, 'short_range');
-    
-    // Extract time series data (short range uses .series.data structure)
-    const timeSeries = response.shortRange?.series;
-    
-    if (!timeSeries?.data || timeSeries.data.length === 0) {
-      throw new ApiError(
-        `No short-range data available for reach ${reachId}`,
-        404,
-        'noaa-short-range'
-      );
-    }
-
-    console.log(`Found ${timeSeries.data.length} short-range data points`);
-
-    // Convert NOAA format to our normalized format
-    const normalizedData = {
-      points: timeSeries.data.map(point => ({
-        time: point.validTime,
-        flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
-      }))
-    };
-
-    // Build normalized forecast using existing utility
-    return buildNormalizedForecast(reachId, [
-      {
-        horizon: 'short' as Horizon,
-        label: 'mean',
-        raw: normalizedData
+  return withRetry(
+    async () => {
+      console.log(`Fetching short-range forecast for reach ${reachId}`);
+      
+      // Fetch raw data from NOAA NWPS API
+      const response = await fetchNoaaStreamflow(reachId, 'short_range');
+      
+      // Extract time series data (short range uses .series.data structure)
+      const timeSeries = response.shortRange?.series;
+      
+      if (!timeSeries?.data || timeSeries.data.length === 0) {
+        throw new ApiError(
+          `No short-range data available for reach ${reachId}`,
+          404,
+          'noaa-short-range'
+        );
       }
-    ]);
 
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    
-    throw new ApiError(
-      `Failed to fetch short-range forecast for reach ${reachId}`,
-      500,
-      'noaa-short-range',
-      undefined,
-      error
-    );
-  }
+      console.log(`Found ${timeSeries.data.length} short-range data points`);
+
+      // Convert NOAA format to our normalized format
+      const normalizedData = {
+        points: timeSeries.data.map(point => ({
+          time: point.validTime,
+          flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
+        }))
+      };
+
+      // Build normalized forecast using existing utility
+      return buildNormalizedForecast(reachId, [
+        {
+          horizon: 'short' as Horizon,
+          label: 'mean',
+          raw: normalizedData
+        }
+      ]);
+    },
+    `Short-range forecast for reach ${reachId}`
+  );
 }
 
 /**
- * Fetch medium-range streamflow forecast (~10-day)
+ * Fetch medium-range streamflow forecast (~10-day) with retry logic
  * 
  * @param reachId - NOAA reach identifier
  * @returns Normalized forecast with 'medium' horizon
@@ -144,57 +243,49 @@ export async function getShortRangeForecast(reachId: ReachId): Promise<Normalize
  * Temporal resolution: 6 hours
  */
 export async function getMediumRangeForecast(reachId: ReachId): Promise<NormalizedFlowForecast> {
-  try {
-    console.log(`Fetching medium-range forecast for reach ${reachId}`);
-    
-    // Fetch raw data from NOAA NWPS API
-    const response = await fetchNoaaStreamflow(reachId, 'medium_range');
-    
-    // Extract time series data (medium range uses .mean.data structure)
-    const timeSeries = response.mediumRange?.mean;
-    
-    if (!timeSeries?.data || timeSeries.data.length === 0) {
-      throw new ApiError(
-        `No medium-range data available for reach ${reachId}`,
-        404,
-        'noaa-medium-range'
-      );
-    }
-
-    console.log(`Found ${timeSeries.data.length} medium-range data points`);
-
-    // Convert NOAA format to our normalized format
-    const normalizedData = {
-      points: timeSeries.data.map(point => ({
-        time: point.validTime,
-        flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
-      }))
-    };
-
-    // Build normalized forecast using existing utility
-    return buildNormalizedForecast(reachId, [
-      {
-        horizon: 'medium' as Horizon,
-        label: 'mean',
-        raw: normalizedData
+  return withRetry(
+    async () => {
+      console.log(`Fetching medium-range forecast for reach ${reachId}`);
+      
+      // Fetch raw data from NOAA NWPS API
+      const response = await fetchNoaaStreamflow(reachId, 'medium_range');
+      
+      // Extract time series data (medium range uses .mean.data structure)
+      const timeSeries = response.mediumRange?.mean;
+      
+      if (!timeSeries?.data || timeSeries.data.length === 0) {
+        throw new ApiError(
+          `No medium-range data available for reach ${reachId}`,
+          404,
+          'noaa-medium-range'
+        );
       }
-    ]);
 
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    
-    throw new ApiError(
-      `Failed to fetch medium-range forecast for reach ${reachId}`,
-      500,
-      'noaa-medium-range',
-      undefined,
-      error
-    );
-  }
+      console.log(`Found ${timeSeries.data.length} medium-range data points`);
+
+      // Convert NOAA format to our normalized format
+      const normalizedData = {
+        points: timeSeries.data.map(point => ({
+          time: point.validTime,
+          flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
+        }))
+      };
+
+      // Build normalized forecast using existing utility
+      return buildNormalizedForecast(reachId, [
+        {
+          horizon: 'medium' as Horizon,
+          label: 'mean',
+          raw: normalizedData
+        }
+      ]);
+    },
+    `Medium-range forecast for reach ${reachId}`
+  );
 }
 
 /**
- * Fetch long-range streamflow forecast (~30-day)
+ * Fetch long-range streamflow forecast (~30-day) with retry logic
  * 
  * @param reachId - NOAA reach identifier
  * @returns Normalized forecast with 'long' horizon
@@ -205,53 +296,45 @@ export async function getMediumRangeForecast(reachId: ReachId): Promise<Normaliz
  * Temporal resolution: Daily
  */
 export async function getLongRangeForecast(reachId: ReachId): Promise<NormalizedFlowForecast> {
-  try {
-    console.log(`Fetching long-range forecast for reach ${reachId}`);
-    
-    // Fetch raw data from NOAA NWPS API
-    const response = await fetchNoaaStreamflow(reachId, 'long_range');
-    
-    // Extract time series data (long range uses .mean.data structure)
-    const timeSeries = response.longRange?.mean;
-    
-    if (!timeSeries?.data || timeSeries.data.length === 0) {
-      throw new ApiError(
-        `No long-range data available for reach ${reachId}`,
-        404,
-        'noaa-long-range'
-      );
-    }
-
-    console.log(`Found ${timeSeries.data.length} long-range data points`);
-
-    // Convert NOAA format to our normalized format
-    const normalizedData = {
-      points: timeSeries.data.map(point => ({
-        time: point.validTime,
-        flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
-      }))
-    };
-
-    // Build normalized forecast using existing utility
-    return buildNormalizedForecast(reachId, [
-      {
-        horizon: 'long' as Horizon,
-        label: 'mean',
-        raw: normalizedData
+  return withRetry(
+    async () => {
+      console.log(`Fetching long-range forecast for reach ${reachId}`);
+      
+      // Fetch raw data from NOAA NWPS API
+      const response = await fetchNoaaStreamflow(reachId, 'long_range');
+      
+      // Extract time series data (long range uses .mean.data structure)
+      const timeSeries = response.longRange?.mean;
+      
+      if (!timeSeries?.data || timeSeries.data.length === 0) {
+        throw new ApiError(
+          `No long-range data available for reach ${reachId}`,
+          404,
+          'noaa-long-range'
+        );
       }
-    ]);
 
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    
-    throw new ApiError(
-      `Failed to fetch long-range forecast for reach ${reachId}`,
-      500,
-      'noaa-long-range',
-      undefined,
-      error
-    );
-  }
+      console.log(`Found ${timeSeries.data.length} long-range data points`);
+
+      // Convert NOAA format to our normalized format
+      const normalizedData = {
+        points: timeSeries.data.map(point => ({
+          time: point.validTime,
+          flow_cms: point.flow / 35.314666721 // Convert CFS to CMS for normalizer
+        }))
+      };
+
+      // Build normalized forecast using existing utility
+      return buildNormalizedForecast(reachId, [
+        {
+          horizon: 'long' as Horizon,
+          label: 'mean',
+          raw: normalizedData
+        }
+      ]);
+    },
+    `Long-range forecast for reach ${reachId}`
+  );
 }
 
 /**
@@ -267,71 +350,64 @@ export async function getLongRangeForecast(reachId: ReachId): Promise<Normalized
  * Use case: Comprehensive hydrograph display showing multiple time horizons
  */
 export async function getAllRangeForecasts(reachId: ReachId): Promise<NormalizedFlowForecast> {
-  try {
-    console.log(`Fetching all forecast ranges for reach ${reachId}`);
-    
-    // Fetch all ranges in parallel for better performance
-    const [shortResult, mediumResult, longResult] = await Promise.allSettled([
-      getShortRangeForecast(reachId),
-      getMediumRangeForecast(reachId),
-      getLongRangeForecast(reachId)
-    ]);
+  return withRetry(
+    async () => {
+      console.log(`Fetching all forecast ranges for reach ${reachId}`);
+      
+      // Fetch all ranges in parallel for better performance
+      // Note: Each individual function already has retry logic
+      const [shortResult, mediumResult, longResult] = await Promise.allSettled([
+        getShortRangeForecast(reachId),
+        getMediumRangeForecast(reachId),
+        getLongRangeForecast(reachId)
+      ]);
 
-    // Collect all successful forecast series
-    const allSeries = [];
-    
-    // Process short-range result
-    if (shortResult.status === 'fulfilled') {
-      console.log('✓ Short-range forecast successful');
-      allSeries.push(...shortResult.value.series);
-    } else {
-      console.warn('✗ Short-range forecast failed:', shortResult.reason?.message);
-    }
-    
-    // Process medium-range result  
-    if (mediumResult.status === 'fulfilled') {
-      console.log('✓ Medium-range forecast successful');
-      allSeries.push(...mediumResult.value.series);
-    } else {
-      console.warn('✗ Medium-range forecast failed:', mediumResult.reason?.message);
-    }
-    
-    // Process long-range result
-    if (longResult.status === 'fulfilled') {
-      console.log('✓ Long-range forecast successful');
-      allSeries.push(...longResult.value.series);
-    } else {
-      console.warn('✗ Long-range forecast failed:', longResult.reason?.message);
-    }
+      // Collect all successful forecast series
+      const allSeries = [];
+      
+      // Process short-range result
+      if (shortResult.status === 'fulfilled') {
+        console.log('✓ Short-range forecast successful');
+        allSeries.push(...shortResult.value.series);
+      } else {
+        console.warn('✗ Short-range forecast failed:', shortResult.reason?.message);
+      }
+      
+      // Process medium-range result  
+      if (mediumResult.status === 'fulfilled') {
+        console.log('✓ Medium-range forecast successful');
+        allSeries.push(...mediumResult.value.series);
+      } else {
+        console.warn('✗ Medium-range forecast failed:', mediumResult.reason?.message);
+      }
+      
+      // Process long-range result
+      if (longResult.status === 'fulfilled') {
+        console.log('✓ Long-range forecast successful');
+        allSeries.push(...longResult.value.series);
+      } else {
+        console.warn('✗ Long-range forecast failed:', longResult.reason?.message);
+      }
 
-    // Ensure we got at least one successful forecast
-    if (allSeries.length === 0) {
-      throw new ApiError(
-        `No forecast data available for any range for reach ${reachId}`,
-        404,
-        'noaa-all-ranges'
-      );
-    }
+      // Ensure we got at least one successful forecast
+      if (allSeries.length === 0) {
+        throw new ApiError(
+          `No forecast data available for any range for reach ${reachId}`,
+          404,
+          'noaa-all-ranges'
+        );
+      }
 
-    console.log(`Successfully combined ${allSeries.length} forecast series`);
+      console.log(`Successfully combined ${allSeries.length} forecast series`);
 
-    // Return combined forecast with all available series
-    return {
-      reachId,
-      series: allSeries
-    };
-
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    
-    throw new ApiError(
-      `Failed to fetch all-range forecasts for reach ${reachId}`,
-      500,
-      'noaa-all-ranges',
-      undefined,
-      error
-    );
-  }
+      // Return combined forecast with all available series
+      return {
+        reachId,
+        series: allSeries
+      };
+    },
+    `All-range forecasts for reach ${reachId}`
+  );
 }
 
 // ========================================
@@ -347,6 +423,7 @@ export async function getAllRangeForecasts(reachId: ReachId): Promise<Normalized
  * 
  * This function handles the HTTP request and basic error handling.
  * Series-specific data extraction is handled by the calling functions.
+ * Note: This function does NOT have retry logic - retries are handled at the higher level.
  */
 async function fetchNoaaStreamflow(
   reachId: ReachId,
@@ -412,7 +489,7 @@ async function fetchNoaaStreamflow(
 }
 
 /**
- * Get basic reach metadata from NOAA (uses short-range endpoint)
+ * Get basic reach metadata from NOAA (uses short-range endpoint) with retry logic
  * 
  * @param reachId - NOAA reach identifier
  * @returns River reach metadata or null if not found
@@ -422,36 +499,41 @@ async function fetchNoaaStreamflow(
  */
 export async function getReachMetadata(reachId: ReachId): Promise<RiverReach | null> {
   try {
-    console.log(`Fetching metadata for reach ${reachId}`);
-    
-    // Use short-range endpoint to get reach metadata (most reliable)
-    const response = await fetchNoaaStreamflow(reachId, 'short_range');
-    
-    if (!response.reach) {
-      return null;
-    }
+    return await withRetry(
+      async () => {
+        console.log(`Fetching metadata for reach ${reachId}`);
+        
+        // Use short-range endpoint to get reach metadata (most reliable)
+        const response = await fetchNoaaStreamflow(reachId, 'short_range');
+        
+        if (!response.reach) {
+          return null;
+        }
 
-    // Convert to our RiverReach type
-    const reach: RiverReach = {
-      reachId: response.reach.reachId as ReachId,
-      name: response.reach.name,
-      latitude: response.reach.latitude,
-      longitude: response.reach.longitude,
-      streamflow: response.reach.streamflow || [],
-      route: response.reach.route ? {
-        upstream: response.reach.route.upstream.map(r => ({
-          reachId: r.reachId as ReachId,
-          streamOrder: r.streamOrder
-        })),
-        downstream: response.reach.route.downstream.map(r => ({
-          reachId: r.reachId as ReachId,
-          streamOrder: r.streamOrder
-        }))
-      } : undefined
-    };
+        // Convert to our RiverReach type
+        const reach: RiverReach = {
+          reachId: response.reach.reachId as ReachId,
+          name: response.reach.name,
+          latitude: response.reach.latitude,
+          longitude: response.reach.longitude,
+          streamflow: response.reach.streamflow || [],
+          route: response.reach.route ? {
+            upstream: response.reach.route.upstream.map(r => ({
+              reachId: r.reachId as ReachId,
+              streamOrder: r.streamOrder
+            })),
+            downstream: response.reach.route.downstream.map(r => ({
+              reachId: r.reachId as ReachId,
+              streamOrder: r.streamOrder
+            }))
+          } : undefined
+        };
 
-    console.log(`✓ Found reach: ${reach.name} at (${reach.latitude}, ${reach.longitude})`);
-    return reach;
+        console.log(`✓ Found reach: ${reach.name} at (${reach.latitude}, ${reach.longitude})`);
+        return reach;
+      },
+      `Metadata for reach ${reachId}`
+    );
     
   } catch (error) {
     console.warn(`Failed to fetch reach metadata for ${reachId}:`, error);
