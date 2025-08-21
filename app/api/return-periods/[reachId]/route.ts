@@ -9,11 +9,15 @@ import { config } from '@/config/secrets.local';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { reachId: string } }
+  { params }: { params: Promise<{ reachId: string }> }
 ) {
-  const { reachId } = params;
-
+  let reachId: string = 'unknown';
+  
   try {
+    // Await params in Next.js 15
+    const resolvedParams = await params;
+    reachId = resolvedParams.reachId;
+
     // Validate reach ID
     if (!reachId || reachId.trim() === '') {
       return NextResponse.json(

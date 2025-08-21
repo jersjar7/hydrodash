@@ -11,7 +11,6 @@ import { useAppContext } from '@/components/Layout/AppShell';
 import type { 
   ActiveLocation, 
   SavedPlace,
-  UserPreferences,
   AppView
 } from '@/components/Layout/AppShell';
 import { 
@@ -19,6 +18,7 @@ import {
   isSavedPlace, 
   getLocationProps 
 } from '@/components/Layout/AppShell';
+import { UserPreferences } from '@/types';
 
 // Updated interface to match what AppShell passes
 export interface SidebarProps {
@@ -167,8 +167,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         onSidebarToggle={onToggle}
         flowUnit={preferences.flowUnit}
         onFlowUnitChange={(unit) => updatePreference('flowUnit', unit)}
-        theme={preferences.theme}
-        onThemeChange={(theme) => updatePreference('theme', theme)}
         isMobile={isMobile}
       />
 

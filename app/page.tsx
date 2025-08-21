@@ -121,7 +121,15 @@ const MapScreen = () => {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [showStreamModal, setShowStreamModal] = useState(false);
   const [selectedStreamData, setSelectedStreamData] = useState<StreamMetadata | undefined>(undefined);
-  const { setCurrentView, setActiveLocation, addSavedPlace, userPreferences } = useAppContext();
+  
+  // Get sidebar state from AppContext
+  const { 
+    setCurrentView, 
+    setActiveLocation, 
+    addSavedPlace, 
+    userPreferences,
+    sidebarOpen  // Access sidebar state
+  } = useAppContext();
 
   // Handle stream selection from map
   const handleStreamClick = (reachId: string) => {
@@ -183,9 +191,15 @@ const MapScreen = () => {
           tempUnit={userPreferences.tempUnit}
           onAddToSaved={handleAddToSaved}
           onViewDashboard={handleViewDashboard}
+          // flowData prop is now handled internally by StreamPopup
+          // NOTE: StreamPopup now fetches flow data internally using hooks
         />
       ) : undefined}
       onModalBackdropClick={handleCloseModal}
+      
+      /* Pass sidebar state to MapPanel for proper modal backdrop positioning */
+      sidebarOpen={sidebarOpen}
+      sidebarWidth={400}  // Match SidebarOverlay width
       
       /* Stream ID Search Bar (positioned at top-right) */
       streamSearchOverlay={

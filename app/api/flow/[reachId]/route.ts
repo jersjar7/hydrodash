@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { NormalizedFlowForecast, ApiResponse } from '@/types';
+import type { NormalizedFlowForecast, ApiResponse, ReachId } from '@/types';
 import { 
   getShortRangeForecast,
   getMediumRangeForecast, 
@@ -29,11 +29,15 @@ type ForecastRange = 'short' | 'medium' | 'long' | 'all';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { reachId: string } }
+  { params }: { params: Promise<{ reachId: string }> }
 ): Promise<NextResponse<FlowApiResponse>> {
+  let reachId: ReachId;
+  let rawReachId: string = 'unknown';
+  
   try {
-    // Extract reachId from URL params
-    const rawReachId = params.reachId;
+    // Await params in Next.js 15
+    const resolvedParams = await params;
+    rawReachId = resolvedParams.reachId;
     
     if (!rawReachId) {
       return NextResponse.json(
@@ -45,10 +49,11 @@ export async function GET(
       );
     }
 
-    const reachId = toReachId(rawReachId);
+    // Convert to branded ReachId type
+    reachId = toReachId(rawReachId);
     
     // Basic reachId format validation
-    if (!isValidReachId(reachId)) {
+    if (!isValidReachId(rawReachId)) {
       return NextResponse.json(
         {
           ok: false,
@@ -151,7 +156,7 @@ export async function GET(
     );
 
   } catch (error) {
-    console.error(`Flow API error for reach ${params.reachId}:`, error);
+    console.error(`Flow API error for reach ${rawReachId}:`, error);
     
     // Handle structured API errors
     if (ApiError.isApiError(error)) {
@@ -181,7 +186,7 @@ export async function GET(
 }
 
 /**
- * Validate reachId format
+ * Validate reachId format (works on raw string)
  * NOAA reach IDs are typically 8-10 digit numbers
  */
 function isValidReachId(reachId: string): boolean {
