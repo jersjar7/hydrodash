@@ -12,6 +12,7 @@ import Toast from '@/components/common/Toast';
 
 // Import flow data hooks and utilities
 import { useShortRangeForecast, getCurrentFlow } from '@/hooks/useFlowData';
+import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { useReturnPeriods } from '@/hooks/useReturnPeriods';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 
@@ -73,6 +74,16 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
   className = '',
 }) => {
   
+  // Fetch official river metadata when popup is open and we have stream data
+  const {
+    data: reachMetadata,
+    isLoading: metadataLoading,
+    error: metadataError,
+  } = useReachMetadata(streamData?.reachId || null, {
+    enabled: isOpen && !!streamData?.reachId,
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
+  });
+
   // Fetch flow data when modal is open and we have stream data
   const {
     data: forecastData,
@@ -117,6 +128,11 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
   const flowDataLoading = flowLoading || returnPeriodsLoading;
   const flowDataError = flowError || returnPeriodsError;
   const hasFlowData = currentFlow !== null && !flowDataError;
+
+  // Get display names - prioritize official river name
+  const riverName = reachMetadata?.name;
+  const displayName = riverName || streamData?.name || 'Stream Information';
+  const showReachId = !!streamData?.reachId;
 
   // Close on Escape key
   useEffect(() => {
@@ -182,13 +198,25 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
               <path d="M3.5 7.5A3.5 3.5 0 017 4a.5.5 0 01.5.5c0 .3-.2.5-.5.5a2.5 2.5 0 00-2.5 2.5c0 .3-.2.5-.5.5a.5.5 0 01-.5-.5z" />
             </svg>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {streamData?.name || 'Stream Information'}
+          <div className="min-w-0 flex-1">
+            {/* Main title - River name or fallback */}
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+              {metadataLoading ? (
+                <span className="inline-flex items-center">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mr-2" />
+                  {streamData?.name || 'Loading...'}
+                </span>
+              ) : (
+                displayName
+              )}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {streamData?.reachId && `ID: ${streamData.reachId}`}
-            </p>
+            
+            {/* Subtitle - Reach ID */}
+            {showReachId && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                ReachID {streamData?.reachId}
+              </p>
+            )}
           </div>
         </div>
         
@@ -207,18 +235,33 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
         {/* Stream Metadata */}
         {streamData && (
           <div className="space-y-2">
+            {/* Show description if available */}
             {streamData.description && (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {streamData.description}
               </p>
             )}
             
+            {/* Show additional metadata from NOAA if we have it and it's different */}
+            {reachMetadata && riverName && riverName !== streamData.name && streamData.name && (
+              <div className="text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Also known as:</span>
+                <p className="font-medium text-gray-700 dark:text-gray-300">
+                  {streamData.name}
+                </p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {(streamData.lat && streamData.lon) && (
+              {/* Use coordinates from reachMetadata if available, otherwise from streamData */}
+              {((reachMetadata?.latitude && reachMetadata?.longitude) || (streamData.lat && streamData.lon)) && (
                 <div>
                   <span className="text-gray-500 dark:text-gray-400">Location:</span>
                   <p className="font-medium text-gray-900 dark:text-white font-mono">
-                    {streamData.lat.toFixed(4)}, {streamData.lon.toFixed(4)}
+                    {reachMetadata?.latitude 
+                      ? `${reachMetadata.latitude.toFixed(4)}, ${reachMetadata.longitude.toFixed(4)}`
+                      : `${streamData.lat!.toFixed(4)}, ${streamData.lon!.toFixed(4)}`
+                    }
                   </p>
                 </div>
               )}

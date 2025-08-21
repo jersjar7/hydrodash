@@ -10,6 +10,7 @@ import { WeatherData } from '@/components/display/WeatherSummary';
 import { useAppContext } from '@/components/Layout/AppShell';
 import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useShortRangeForecast, getCurrentFlow, getPeakFlow } from '@/hooks/useFlowData';
+import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { useReturnPeriods } from '@/hooks/useReturnPeriods';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -67,6 +68,16 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+
+  // Fetch river metadata to get the river name (only if we have a reachId)
+  const {
+    data: reachMetadata,
+    isLoading: metadataLoading,
+    error: metadataError,
+  } = useReachMetadata(place.reachId || null, {
+    enabled: !!place.reachId && showFlowData,
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
+  });
 
   // Use individual flow data hook for this place (only if showFlowData is true)
   const {
@@ -212,6 +223,11 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
   // Determine if we're using proper risk calculation
   const usingProperRiskCalculation = currentFlow !== null && returnPeriods && !returnPeriodsLoading;
 
+  // Get display name - use river name if available, otherwise fall back to place name
+  const riverName = reachMetadata?.name;
+  const displayName = riverName || place.name;
+  const showReachId = !!place.reachId && riverName; // Only show reach ID if we have a river name
+
   return (
     <div
       onClick={() => onSelect(place)}
@@ -259,9 +275,31 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-medium text-white truncate drop-shadow-sm">
-              {place.name}
+            {/* Main title - River name or place name */}
+            <h4 className="text-lg font-medium text-white truncate drop-shadow-sm">
+              {metadataLoading ? (
+                <span className="inline-flex items-center">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  {place.name}
+                </span>
+              ) : (
+                displayName
+              )}
             </h4>
+            
+            {/* Subtitle - Reach ID when we have river name */}
+            {showReachId && (
+              <p className="text-xs text-white/80 truncate drop-shadow-sm mt-0.5">
+                Stream {place.reachId}
+              </p>
+            )}
+            
+            {/* Fallback subtitle when no river name but have reach ID */}
+            {place.reachId && !riverName && !metadataLoading && (
+              <p className="text-xs text-white/80 truncate drop-shadow-sm mt-0.5">
+                Stream #{place.reachId}
+              </p>
+            )}
           </div>
           
           {/* Actions */}
