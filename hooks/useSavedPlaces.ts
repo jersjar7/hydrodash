@@ -1,7 +1,7 @@
 // hooks/useSavedPlaces.ts
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { SavedPlace, ReachId } from '@/types';
 
 // Local storage key
@@ -119,30 +119,44 @@ export function useSavedPlaces(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 🔥 FIX: Use refs to prevent infinite loops
+  const isLoadingFromStorageRef = useRef(false);
+  const isSavingToStorageRef = useRef(false);
+
   // ========================================
   // Persistence Functions
   // ========================================
 
   const saveToStorage = useCallback(() => {
+    // 🔥 FIX: Prevent recursive saves
+    if (isSavingToStorageRef.current) {
+      return;
+    }
+
     try {
+      isSavingToStorageRef.current = true;
       localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(places));
       setError(null);
       
-      // Dispatch custom event to notify other hook instances
-      window.dispatchEvent(new CustomEvent('saved-places-changed', {
-        detail: { places, source: 'useSavedPlaces' }
-      }));
+      console.log(`💾 Saved ${places.length} places to localStorage`);
       
     } catch (err) {
       const errorMsg = 'Failed to save places to localStorage';
       console.error(errorMsg, err);
       setError(errorMsg);
+    } finally {
+      isSavingToStorageRef.current = false;
     }
   }, [places]);
 
   const loadFromStorage = useCallback(() => {
+    // 🔥 FIX: Prevent recursive loads
+    if (isLoadingFromStorageRef.current) {
+      return;
+    }
+
     try {
-      setIsLoading(true);
+      isLoadingFromStorageRef.current = true;
       const stored = localStorage.getItem(SAVED_PLACES_KEY);
       
       if (stored) {
@@ -157,7 +171,9 @@ export function useSavedPlaces(
         );
         
         setPlaces(validPlaces);
-        console.log(`Loaded ${validPlaces.length} saved places from localStorage`);
+        console.log(`📥 Loaded ${validPlaces.length} saved places from localStorage`);
+      } else {
+        setPlaces([]);
       }
       
       setError(null);
@@ -167,47 +183,45 @@ export function useSavedPlaces(
       setError(errorMsg);
       setPlaces([]); // Reset to empty array on error
     } finally {
-      setIsLoading(false);
+      isLoadingFromStorageRef.current = false;
     }
   }, []);
 
-  // Load from storage on mount
-  useEffect(() => {
-    loadFromStorage();
+  // 🔥 FIX: Separate initial load function
+  const initialLoad = useCallback(() => {
+    setIsLoading(true);
+    try {
+      loadFromStorage();
+    } finally {
+      setIsLoading(false);
+    }
   }, [loadFromStorage]);
 
-  // Listen for storage changes from other components/tabs
+  // Load from storage on mount
+  useEffect(() => {
+    initialLoad();
+  }, [initialLoad]);
+
+  // 🔥 FIX: Simplified event handling - only listen for storage events from other tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === SAVED_PLACES_KEY) {
-        console.log('🔄 Saved places changed in another component, reloading...');
+      if (e.key === SAVED_PLACES_KEY && e.newValue !== e.oldValue) {
+        console.log('🔄 Saved places changed in another tab, reloading...');
         loadFromStorage();
       }
     };
 
-    const handleCustomChange = (e: CustomEvent) => {
-      // Avoid infinite loops by checking if this instance caused the change
-      if (e.detail.source !== 'useSavedPlaces') {
-        console.log('🔄 Saved places changed via custom event, reloading...');
-        loadFromStorage();
-      }
-    };
-
-    // Listen for changes from other tabs/windows
+    // Only listen for changes from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for changes from other components in same tab
-    window.addEventListener('saved-places-changed', handleCustomChange as EventListener);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('saved-places-changed', handleCustomChange as EventListener);
     };
   }, [loadFromStorage]);
 
-  // Auto-save when places change
+  // Auto-save when places change (but not during initial load)
   useEffect(() => {
-    if (!isLoading && autoSave && places.length >= 0) {
+    if (!isLoading && autoSave) {
       saveToStorage();
     }
   }, [places, autoSave, saveToStorage, isLoading]);
@@ -227,11 +241,12 @@ export function useSavedPlaces(
         throw new Error('Either reachId or coordinates (lat/lon) are required');
       }
 
-      // Check for duplicates
+      // 🔥 Handle duplicates gracefully
       if (input.reachId) {
         const existing = places.find(p => p.reachId === input.reachId);
         if (existing) {
-          throw new Error(`Place with reach ID ${input.reachId} already exists`);
+          console.log(`📍 Place with reach ID ${input.reachId} already exists: ${existing.name}`);
+          return existing; // Return existing place instead of throwing error
         }
       }
 
@@ -261,7 +276,8 @@ export function useSavedPlaces(
         updatedPlaces = places.map(p => ({ ...p, isPrimary: false }));
       }
 
-      setPlaces([...updatedPlaces, newPlace]);
+      const newPlaces = [...updatedPlaces, newPlace];
+      setPlaces(newPlaces);
       setError(null);
       
       console.log(`✅ Added saved place: ${newPlace.name}`);
@@ -281,7 +297,8 @@ export function useSavedPlaces(
         throw new Error(`Place with ID ${placeId} not found`);
       }
 
-      setPlaces(prev => prev.filter(p => p.id !== placeId));
+      const newPlaces = places.filter(p => p.id !== placeId);
+      setPlaces(newPlaces);
       setError(null);
       
       console.log(`🗑️ Removed saved place: ${placeId}`);
