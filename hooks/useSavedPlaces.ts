@@ -18,7 +18,6 @@ interface UseSavedPlacesOptions {
 // Add place input (some fields are optional/auto-generated)
 interface AddPlaceInput {
   name: string;
-  type?: SavedPlace['type'];
   reachId?: ReachId;
   lat?: number;
   lon?: number;
@@ -31,7 +30,6 @@ interface AddPlaceInput {
 interface UpdatePlaceInput {
   id: string;
   name?: string;
-  type?: SavedPlace['type'];
   reachId?: ReachId;
   lat?: number;
   lon?: number;
@@ -129,6 +127,12 @@ export function useSavedPlaces(
     try {
       localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(places));
       setError(null);
+      
+      // Dispatch custom event to notify other hook instances
+      window.dispatchEvent(new CustomEvent('saved-places-changed', {
+        detail: { places, source: 'useSavedPlaces' }
+      }));
+      
     } catch (err) {
       const errorMsg = 'Failed to save places to localStorage';
       console.error(errorMsg, err);
@@ -172,6 +176,35 @@ export function useSavedPlaces(
     loadFromStorage();
   }, [loadFromStorage]);
 
+  // Listen for storage changes from other components/tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === SAVED_PLACES_KEY) {
+        console.log('🔄 Saved places changed in another component, reloading...');
+        loadFromStorage();
+      }
+    };
+
+    const handleCustomChange = (e: CustomEvent) => {
+      // Avoid infinite loops by checking if this instance caused the change
+      if (e.detail.source !== 'useSavedPlaces') {
+        console.log('🔄 Saved places changed via custom event, reloading...');
+        loadFromStorage();
+      }
+    };
+
+    // Listen for changes from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for changes from other components in same tab
+    window.addEventListener('saved-places-changed', handleCustomChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('saved-places-changed', handleCustomChange as EventListener);
+    };
+  }, [loadFromStorage]);
+
   // Auto-save when places change
   useEffect(() => {
     if (!isLoading && autoSave && places.length >= 0) {
@@ -212,7 +245,6 @@ export function useSavedPlaces(
       const newPlace: SavedPlace = {
         id: generatePlaceId(),
         name: input.name.trim(),
-        type: input.type || 'other',
         reachId: input.reachId,
         lat: input.lat,
         lon: input.lon,
@@ -232,7 +264,7 @@ export function useSavedPlaces(
       setPlaces([...updatedPlaces, newPlace]);
       setError(null);
       
-      console.log(`Added saved place: ${newPlace.name}`);
+      console.log(`✅ Added saved place: ${newPlace.name}`);
       return newPlace;
       
     } catch (err) {
@@ -252,7 +284,7 @@ export function useSavedPlaces(
       setPlaces(prev => prev.filter(p => p.id !== placeId));
       setError(null);
       
-      console.log(`Removed saved place: ${placeId}`);
+      console.log(`🗑️ Removed saved place: ${placeId}`);
       
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to remove place';
@@ -263,29 +295,33 @@ export function useSavedPlaces(
 
   const updatePlace = useCallback(async (updates: UpdatePlaceInput): Promise<SavedPlace | null> => {
     try {
-      const existingIndex = places.findIndex(p => p.id === updates.id);
-      if (existingIndex === -1) {
+      const existingPlace = places.find(p => p.id === updates.id);
+      if (!existingPlace) {
         throw new Error(`Place with ID ${updates.id} not found`);
       }
 
-      const existing = places[existingIndex];
+      // Create updated place
       const updatedPlace: SavedPlace = {
-        ...existing,
+        ...existingPlace,
         ...updates,
         updatedAt: new Date().toISOString(),
       };
 
       // If setting as primary, clear other primary flags
-      let newPlaces = [...places];
+      let updatedPlaces = places;
       if (updates.isPrimary) {
-        newPlaces = newPlaces.map(p => ({ ...p, isPrimary: false }));
+        updatedPlaces = places.map(p => ({ ...p, isPrimary: false }));
       }
 
-      newPlaces[existingIndex] = updatedPlace;
-      setPlaces(newPlaces);
+      // Update the specific place
+      const finalPlaces = updatedPlaces.map(p => 
+        p.id === updates.id ? updatedPlace : p
+      );
+
+      setPlaces(finalPlaces);
       setError(null);
       
-      console.log(`Updated saved place: ${updatedPlace.name}`);
+      console.log(`📝 Updated saved place: ${updatedPlace.name}`);
       return updatedPlace;
       
     } catch (err) {
@@ -299,7 +335,7 @@ export function useSavedPlaces(
     try {
       setPlaces([]);
       setError(null);
-      console.log('Cleared all saved places');
+      console.log('🧹 Cleared all saved places');
     } catch (err) {
       const errorMsg = 'Failed to clear places';
       setError(errorMsg);
@@ -385,7 +421,7 @@ export function useSavedPlaces(
       setPlaces(validPlaces);
       setError(null);
       
-      console.log(`Imported ${validPlaces.length} places`);
+      console.log(`📥 Imported ${validPlaces.length} places`);
       
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to import places';

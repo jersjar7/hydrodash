@@ -11,6 +11,7 @@ import MapPanel from '@/components/Layout/MapPanel';
 import DashboardPanel from '@/components/Layout/DashboardPanel';
 import Sidebar from '@/components/Layout/Sidebar';
 import SidebarToggle from '@/components/Sidebar/SidebarToggle';
+import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import type { RiverReach, ReachId, UserPreferences } from '@/types';
 
 // Types for our app state
@@ -26,9 +27,10 @@ export interface SavedPlace {
   lon?: number;
   isPrimary?: boolean;
   createdAt: string;
+  updatedAt?: string;
   // Optional metadata for saved places
-  userNotes?: string;
-  photo?: string;
+  notes?: string;
+  photoUrl?: string;
 }
 
 // Union type for active location - can be either a saved place or live river reach
@@ -152,12 +154,24 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [activeLocation, setActiveLocation] = useState<ActiveLocation>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open as per requirements
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(defaultUserPreferences);
-  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // New modal state
   const [streamModalOpen, setStreamModalOpen] = useState(false);
   const [selectedStreamData, setSelectedStreamData] = useState<StreamModalData | null>(null);
+
+  // Use the saved places hook instead of local state
+  const {
+    places: savedPlaces,
+    addPlace,
+    removePlace,
+    hasPlace,
+    isLoading: savedPlacesLoading,
+    error: savedPlacesError
+  } = useSavedPlaces({
+    autoSave: true,
+    maxPlaces: 20,
+  });
 
   // Responsive breakpoint detection
   const [isMobile, setIsMobile] = useState(false);
@@ -176,36 +190,40 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load user preferences and saved places on mount
+  // Load user preferences on mount
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Load from localStorage
+        // Load preferences from localStorage
         const storedPrefs = localStorage.getItem('hydrodash-preferences');
-        const storedPlaces = localStorage.getItem('hydrodash-saved-places');
         
         if (storedPrefs) {
           setUserPreferences(JSON.parse(storedPrefs));
         }
         
-        if (storedPlaces) {
-          const places = JSON.parse(storedPlaces);
-          setSavedPlaces(places);
-          
-          // Set first saved place as active if none is set
-          if (places.length > 0 && !activeLocation) {
-            setActiveLocation(places[0]);
-          }
+        // Set first saved place as active if none is set and places exist
+        if (savedPlaces.length > 0 && !activeLocation) {
+          setActiveLocation(savedPlaces[0]);
         }
       } catch (error) {
         console.error('Failed to load user data:', error);
       } finally {
-        setIsLoading(false);
+        // Only set loading to false when both user prefs and saved places are loaded
+        if (!savedPlacesLoading) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadUserData();
-  }, [activeLocation]);
+  }, [activeLocation, savedPlaces, savedPlacesLoading]);
+
+  // Update loading state when saved places finish loading
+  useEffect(() => {
+    if (!savedPlacesLoading) {
+      setIsLoading(false);
+    }
+  }, [savedPlacesLoading]);
 
   // Persist user preferences to localStorage
   useEffect(() => {
@@ -214,13 +232,6 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   }, [userPreferences, isLoading]);
 
-  // Persist saved places to localStorage
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('hydrodash-saved-places', JSON.stringify(savedPlaces));
-    }
-  }, [savedPlaces, isLoading]);
-
   // Auto-close sidebar on mobile when changing views
   useEffect(() => {
     if (isMobile && sidebarOpen) {
@@ -228,38 +239,42 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   }, [currentView, isMobile]);
 
-  // Helper functions
-  const addSavedPlace = (place: SavedPlace) => {
-    setSavedPlaces(prev => {
-      const exists = prev.some(p => p.id === place.id);
-      if (exists) return prev;
-      return [...prev, place];
-    });
-    
-    // Update user preferences with new place ID
-    setUserPreferences(prev => ({
-      ...prev,
-      savedPlaceIds: [...prev.savedPlaceIds, place.id]
-    }));
+  // Updated helper functions to use the hook
+  const addSavedPlace = async (place: SavedPlace) => {
+    try {
+      await addPlace({
+        name: place.name,
+        reachId: place.reachId,
+        lat: place.lat,
+        lon: place.lon,
+        notes: place.notes,
+        photoUrl: place.photoUrl,
+        isPrimary: place.isPrimary,
+      });
+      
+      console.log(`✅ Successfully added place: ${place.name}`);
+    } catch (error) {
+      console.error('Failed to add saved place:', error);
+    }
   };
 
-  const removeSavedPlace = (placeId: string) => {
-    setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
-    
-    // Update user preferences
-    setUserPreferences(prev => ({
-      ...prev,
-      savedPlaceIds: prev.savedPlaceIds.filter(id => id !== placeId)
-    }));
-    
-    // Clear active location if it was removed
-    if (activeLocation && getLocationProps(activeLocation)?.id === placeId) {
-      setActiveLocation(null);
+  const removeSavedPlace = async (placeId: string) => {
+    try {
+      await removePlace(placeId);
+      
+      // Clear active location if it was removed
+      if (activeLocation && getLocationProps(activeLocation)?.id === placeId) {
+        setActiveLocation(null);
+      }
+      
+      console.log(`🗑️ Successfully removed place: ${placeId}`);
+    } catch (error) {
+      console.error('Failed to remove saved place:', error);
     }
   };
 
   // New helper to create saved place from river reach
-  const saveLocationFromReach = (reach: RiverReach, type: SavedPlace['type'] = 'other') => {
+  const saveLocationFromReach = async (reach: RiverReach, type: SavedPlace['type'] = 'other') => {
     const savedPlace: SavedPlace = {
       id: crypto.randomUUID(),
       name: reach.name || `Reach ${reach.reachId}`,
@@ -271,7 +286,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       createdAt: new Date().toISOString(),
     };
     
-    addSavedPlace(savedPlace);
+    await addSavedPlace(savedPlace);
   };
 
   // New modal control functions
@@ -322,7 +337,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     setActiveLocation,
     setSidebarOpen,
     setUserPreferences,
-    setSavedPlaces,
+    setSavedPlaces: () => {}, // Deprecated - places are managed by the hook now
     addSavedPlace,
     removeSavedPlace,
     saveLocationFromReach,
