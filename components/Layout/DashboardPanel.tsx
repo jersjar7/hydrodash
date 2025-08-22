@@ -56,6 +56,9 @@ interface DashboardPanelProps {
   className?: string;
   /** Callback when no location is selected */
   onReturnToMap?: () => void;
+  /** Sidebar state - NEW PROPS */
+  isSidebarCollapsed?: boolean;
+  sidebarWidth?: number; // Width in pixels when expanded
 }
 
 const DashboardPanel: React.FC<DashboardPanelProps> = ({
@@ -66,8 +69,21 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   flowUnit = 'CFS',
   className = '',
   onReturnToMap,
+  isSidebarCollapsed = false,
+  sidebarWidth = 280, // Default sidebar width
 }) => {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+
+  // Calculate dynamic positioning based on sidebar state
+  const sidebarAwareStyle = {
+    marginLeft: isSidebarCollapsed ? '0' : `${sidebarWidth}px`,
+    width: isSidebarCollapsed ? '100%' : `calc(100% - ${sidebarWidth}px)`,
+    transition: 'margin-left 0.3s ease-in-out, width 0.3s ease-in-out',
+  };
+
+  // Calculate available width for content centering
+  const availableWidth = isSidebarCollapsed ? 'calc(100vw)' : `calc(100vw - ${sidebarWidth}px)`;
+  const contentMaxWidth = isSidebarCollapsed ? '1280px' : 'min(1280px, 90%)'; // Responsive max-width
 
   // Helper function to check if location is RiverReach
   const isRiverReach = (location: any): location is RiverReach => {
@@ -205,9 +221,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   // Error state
   if (error) {
     return (
-      <ResponsiveContainer maxWidth="7xl" padding="lg" center className={className}>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm">
+      <div className={`h-full ${className}`} style={sidebarAwareStyle}>
+        <div className="h-full flex items-center justify-center px-4">
+          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm w-full">
             <div className="text-red-500 mb-4">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -227,14 +243,14 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             )}
           </div>
         </div>
-      </ResponsiveContainer>
+      </div>
     );
   }
 
   // Loading state
   if (loading) {
     return (
-      <div className={`relative h-full ${className}`}>
+      <div className={`relative h-full ${className}`} style={sidebarAwareStyle}>
         <DashboardLoadingSpinner text="Loading dashboard..." />
       </div>
     );
@@ -243,8 +259,8 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   // No location selected state
   if (!reachId || !locationName) {
     return (
-      <ResponsiveContainer maxWidth="7xl" padding="lg" center className={className}>
-        <div className="flex flex-col items-center justify-center min-h-96 text-center">
+      <div className={`h-full ${className}`} style={sidebarAwareStyle}>
+        <div className="h-full flex flex-col items-center justify-center text-center px-4">
           <div className="text-gray-400 mb-6">
             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -269,13 +285,16 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             </button>
           )}
         </div>
-      </ResponsiveContainer>
+      </div>
     );
   }
 
   return (
     <DashboardContext.Provider value={dashboardContextValue}>
-      <div className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}>
+      <div 
+        className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}
+        style={sidebarAwareStyle}
+      >
         {/* Main Content with top margin */}
         <div className="h-full pt-16 overflow-y-auto" onScroll={handleScroll}>
           
@@ -285,22 +304,27 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
               transition-all duration-500 ease-in-out
               ${isHeaderCollapsed ? 'h-20' : 'h-[33vh]'}
               border-b border-white/20 dark:border-gray-700/30
+              flex items-center justify-center
             `}
           >
-            <ResponsiveContainer maxWidth="7xl" padding="lg" center className="h-full">
-              <div className="h-full flex flex-col justify-center">
+            {/* Content centered within available space */}
+            <div 
+              className="w-full flex flex-col justify-center px-4 sm:px-6 lg:px-8"
+              style={{ maxWidth: contentMaxWidth }}
+            >
+              <div className="text-center">
                 {/* Always visible - River name */}
                 <div className="flex items-center justify-center">
-                  <div className="text-center">
-                    <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-3xl' : 'text-2xl'}`}>
+                  <div>
+                    <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-2xl md:text-3xl' : 'text-3xl md:text-4xl lg:text-5xl'}`}>
                       {displayName}
                     </h1>
                     {geoLocation && (
-                      <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-xl' : 'text-lg'}`}>
+                      <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'}`}>
                         {geoLocation.display}
                       </p>
                     )}
-                    <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-base' : 'text-sm'}`}>
+                    <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-sm md:text-base' : 'text-base md:text-lg'}`}>
                       <span>ID: {reachId}</span>
                       {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
                         <>
@@ -313,9 +337,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                 </div>
 
                 {/* Expandable content - Current flow cards */}
-                <div className={`mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
+                <div className={`mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
                   {/* Current Flow */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
+                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm">
                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
                     {flowLoading || returnPeriodsLoading ? (
                       <div className="flex items-center space-x-2">
@@ -326,7 +350,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                       <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
                     ) : (
                       <div className="space-y-1">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
                           {formatFlow(currentFlow)}
                         </p>
                         <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
@@ -337,20 +361,27 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                   </div>
 
                   {/* Additional stats placeholder */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
+                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm">
                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
                     <div className="space-y-1">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
+                      <p className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">--</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
                     </div>
                   </div>
                 </div>
               </div>
-            </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* Tiles Area - Managed by TilesManager */}
-          <TilesManager data-testid="dashboard-tiles" />
+          {/* Tiles Area - Centered within available space */}
+          <div className="flex justify-center py-6">
+            <div 
+              className="w-full px-4 sm:px-6 lg:px-8"
+              style={{ maxWidth: contentMaxWidth }}
+            >
+              <TilesManager data-testid="dashboard-tiles" />
+            </div>
+          </div>
           
         </div>
       </div>
