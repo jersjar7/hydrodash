@@ -256,7 +256,7 @@ const TilesManager: React.FC<TilesManagerProps> = ({
           style={{
             width: containerDimensions.width,
             height: containerDimensions.height,
-            minHeight: '600px'
+            minHeight: '1600px'
           }}
         >
           {/* Grid background */}

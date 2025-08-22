@@ -328,105 +328,105 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   }
 
   return (
-    <DashboardContext.Provider value={dashboardContextValue}>
+  <DashboardContext.Provider value={dashboardContextValue}>
+    <div 
+      className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}
+      style={{
+        transition: 'padding 0.3s ease-in-out',
+        ...layoutStyles
+      }}
+    >
+      {/* Main scrolling container */}
       <div 
-        className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}
-        style={{
-          transition: 'padding 0.3s ease-in-out',
-          ...layoutStyles
-        }}
+        className="h-full pt-16 overflow-y-auto"
+        onScroll={handleScroll}
       >
-        {/* Main Content with top margin */}
-        <div className="h-full pt-16 overflow-y-auto" onScroll={handleScroll}>
-          
-          {/* Collapsible Header */}
-          <div 
-            className={`
-              transition-all duration-500 ease-in-out
-              ${isHeaderCollapsed ? 'h-20' : 'h-[33vh]'}
-              border-b border-white/20 dark:border-gray-700/30
-              flex items-center justify-center
-            `}
-          >
-            {/* Content centered within available space */}
-            <div className={getContentContainerClasses()}>
-              <div className="text-center">
-                {/* Always visible - River name */}
-                <div className="flex items-center justify-center">
-                  <div>
-                    <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-2xl md:text-3xl' : 'text-3xl md:text-4xl lg:text-5xl'}`}>
-                      {displayName}
-                    </h1>
-                    {geoLocation && (
-                      <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'}`}>
-                        {geoLocation.display}
-                      </p>
-                    )}
-                    <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-sm md:text-base' : 'text-base md:text-lg'}`}>
-                      <span>ID: {reachId}</span>
-                      {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
-                        <>
-                          <span>•</span>
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
-                        </>
-                      )}
+        {/* Simple sticky header */}
+        <div 
+          className={`
+            sticky top-0 z-50
+            transition-all duration-300 ease-in-out
+            ${isHeaderCollapsed ? 'h-32' : 'h-[40vh]'}
+            border-b border-white/20 dark:border-gray-700/30
+            flex items-center justify-center
+            overflow-hidden
+          `}
+        >
+          <div className={getContentContainerClasses()}>
+            <div className="text-center">
+              {/* Always visible title */}
+              <div>
+                <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-300 ${isHeaderCollapsed ? 'text-3xl md:text-4xl' : 'text-4xl md:text-5xl lg:text-6xl'}`}>
+                  {displayName}
+                </h1>
+                {geoLocation && (
+                  <p className={`text-gray-700 dark:text-gray-300 mt-2 transition-all duration-300 ${isHeaderCollapsed ? 'text-lg md:text-xl' : 'text-2xl md:text-3xl'}`}>
+                    {geoLocation.display}
+                  </p>
+                )}
+                <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-300 ${isHeaderCollapsed ? 'text-sm md:text-base' : 'text-lg md:text-xl'}`}>
+                  <span>ID: {reachId}</span>
+                  {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
+                    <>
+                      <span>•</span>
+                      <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Cards that disappear when collapsed */}
+              <div className={`mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto transition-all duration-300 ${isHeaderCollapsed ? 'opacity-0 scale-95 max-h-0 overflow-hidden' : 'opacity-100 scale-100 max-h-96'}`}>
+                {/* Current Flow */}
+                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
+                  <h3 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-3">Current Flow</h3>
+                  {flowLoading || returnPeriodsLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
-                  </div>
+                  ) : flowError ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+                        {formatFlow(currentFlow)}
+                      </p>
+                      <p className={`text-base font-medium capitalize ${getRiskColor(riskLevel)}`}>
+                        {riskLevel?.replace('_', ' ') || 'Unknown'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Expandable content - Current flow cards */}
-                <div className={`mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-2xl mx-auto transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
-                  {/* Current Flow */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
-                    {flowLoading || returnPeriodsLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                        <span className="text-sm text-gray-500">Loading...</span>
-                      </div>
-                    ) : flowError ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
-                    ) : (
-                      <div className="space-y-1">
-                        <p className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-                          {formatFlow(currentFlow)}
-                        </p>
-                        <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
-                          {riskLevel?.replace('_', ' ') || 'Unknown'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Additional stats placeholder */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4 md:p-6 backdrop-blur-sm">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
-                    <div className="space-y-1">
-                      <p className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">--</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
-                    </div>
+                {/* Additional stats */}
+                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
+                  <h3 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-3">24h Trend</h3>
+                  <div className="space-y-1">
+                    <p className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">--</p>
+                    <p className="text-base text-gray-500 dark:text-gray-400">Coming soon</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Tiles Area - Centered within available space */}
-          <div className="flex justify-center py-6">
-            <div className={getContentContainerClasses()}>
-              <TilesManager data-testid="dashboard-tiles" />
-              {children && (
-                <div className="mt-6">
-                  {children}
-                </div>
-              )}
-            </div>
+        {/* Content area - scrolls normally */}
+        <div className="py-8">
+          <div className={getContentContainerClasses()}>
+            <TilesManager data-testid="dashboard-tiles" />
+            {children && (
+              <div className="mt-8">
+                {children}
+              </div>
+            )}
           </div>
-          
         </div>
       </div>
-    </DashboardContext.Provider>
-  );
+    </div>
+  </DashboardContext.Provider>
+);
 };
 
 export default DashboardPanel;
