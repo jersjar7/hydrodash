@@ -451,23 +451,9 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <ErrorBoundary>
                 {shouldShowDashboard ? (
                   <DashboardPanel
-                    header={
-                      activeLocationProps && (
-                        <div className="mb-4">
-                          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {activeLocationProps.name}
-                          </h1>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            {activeLocationProps.reachId ? `Reach ID: ${activeLocationProps.reachId}` : 'Custom Location'}
-                            {isRiverReach(activeLocation) && activeLocation.streamflow && (
-                              <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                                • {activeLocation.streamflow.length} forecast types available
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      )
-                    }
+                    activeLocation={activeLocation}
+                    flowUnit={userPreferences?.flowUnit}
+                    onReturnToMap={() => setCurrentView('map')}
                   >
                     {children}
                   </DashboardPanel>
