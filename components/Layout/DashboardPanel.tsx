@@ -14,6 +14,7 @@ import { computeRisk } from '@/lib/utils/riskCalculator';
 import { DashboardLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ResponsiveContainer from '@/components/common/ResponsiveContainer';
 import TilesManager from '@/components/Layout/TilesManager';
+import { SIDEBAR_WIDTH } from '@/components/Layout/AppShell';
 
 // Stream metadata interface
 interface StreamMetadata {
@@ -42,6 +43,8 @@ export const useDashboardContext = () => {
 };
 
 interface DashboardPanelProps {
+  /** Widget children */
+  children?: React.ReactNode;
   /** Currently active location from AppShell (SavedPlace or RiverReach) */
   activeLocation?: SavedPlace | RiverReach | null;
   /** Selected stream data from map modal */
@@ -62,6 +65,7 @@ interface DashboardPanelProps {
 }
 
 const DashboardPanel: React.FC<DashboardPanelProps> = ({
+  children,
   activeLocation,
   selectedStream,
   loading = false,
@@ -70,20 +74,30 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   className = '',
   onReturnToMap,
   isSidebarCollapsed = false,
-  sidebarWidth = 280, // Default sidebar width
+  sidebarWidth = SIDEBAR_WIDTH, // Default from AppShell
 }) => {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
-  // Calculate dynamic positioning based on sidebar state
-  const sidebarAwareStyle = {
-    marginLeft: isSidebarCollapsed ? '0' : `${sidebarWidth}px`,
-    width: isSidebarCollapsed ? '100%' : `calc(100% - ${sidebarWidth}px)`,
-    transition: 'margin-left 0.3s ease-in-out, width 0.3s ease-in-out',
-  };
+  // Calculate dynamic positioning and content centering based on sidebar state
+  const layoutStyles = isSidebarCollapsed 
+    ? {
+        // Sidebar collapsed: use full viewport width
+        paddingLeft: '0',
+        paddingRight: '0',
+      }
+    : {
+        // Sidebar open: offset content to account for sidebar
+        paddingLeft: `${sidebarWidth}px`,
+        paddingRight: '0',
+      };
 
-  // Calculate available width for content centering
-  const availableWidth = isSidebarCollapsed ? 'calc(100vw)' : `calc(100vw - ${sidebarWidth}px)`;
-  const contentMaxWidth = isSidebarCollapsed ? '1280px' : 'min(1280px, 90%)'; // Responsive max-width
+  // Content container classes with improved centering
+  const getContentContainerClasses = () => {
+    const baseClasses = "w-full mx-auto px-4 sm:px-6 lg:px-8";
+    // Use responsive max-width based on sidebar state
+    const maxWidth = isSidebarCollapsed ? 'max-w-7xl' : 'max-w-6xl';
+    return `${baseClasses} ${maxWidth}`;
+  };
 
   // Helper function to check if location is RiverReach
   const isRiverReach = (location: any): location is RiverReach => {
@@ -221,26 +235,34 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   // Error state
   if (error) {
     return (
-      <div className={`h-full ${className}`} style={sidebarAwareStyle}>
-        <div className="h-full flex items-center justify-center px-4">
-          <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm w-full">
-            <div className="text-red-500 mb-4">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+      <div 
+        className={`h-full ${className}`} 
+        style={{
+          transition: 'padding 0.3s ease-in-out',
+          ...layoutStyles
+        }}
+      >
+        <div className="h-full flex items-center justify-center">
+          <div className={getContentContainerClasses()}>
+            <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm mx-auto">
+              <div className="text-red-500 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Dashboard Error
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
+              {onReturnToMap && (
+                <button
+                  onClick={onReturnToMap}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  Return to Map
+                </button>
+              )}
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Dashboard Error
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
-            {onReturnToMap && (
-              <button
-                onClick={onReturnToMap}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-              >
-                Return to Map
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -250,7 +272,13 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   // Loading state
   if (loading) {
     return (
-      <div className={`relative h-full ${className}`} style={sidebarAwareStyle}>
+      <div 
+        className={`relative h-full ${className}`} 
+        style={{
+          transition: 'padding 0.3s ease-in-out',
+          ...layoutStyles
+        }}
+      >
         <DashboardLoadingSpinner text="Loading dashboard..." />
       </div>
     );
@@ -259,31 +287,41 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   // No location selected state
   if (!reachId || !locationName) {
     return (
-      <div className={`h-full ${className}`} style={sidebarAwareStyle}>
-        <div className="h-full flex flex-col items-center justify-center text-center px-4">
-          <div className="text-gray-400 mb-6">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+      <div 
+        className={`h-full ${className}`} 
+        style={{
+          transition: 'padding 0.3s ease-in-out',
+          ...layoutStyles
+        }}
+      >
+        <div className="h-full flex flex-col items-center justify-center">
+          <div className={getContentContainerClasses()}>
+            <div className="text-center">
+              <div className="text-gray-400 mb-6">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                No Location Selected
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                Select a stream from the map or choose a saved place to view its dashboard.
+              </p>
+              {onReturnToMap && (
+                <button
+                  onClick={onReturnToMap}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  Browse Map
+                </button>
+              )}
+            </div>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Location Selected
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-            Select a stream from the map or choose a saved place to view its dashboard.
-          </p>
-          {onReturnToMap && (
-            <button
-              onClick={onReturnToMap}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Browse Map
-            </button>
-          )}
         </div>
       </div>
     );
@@ -293,7 +331,10 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     <DashboardContext.Provider value={dashboardContextValue}>
       <div 
         className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}
-        style={sidebarAwareStyle}
+        style={{
+          transition: 'padding 0.3s ease-in-out',
+          ...layoutStyles
+        }}
       >
         {/* Main Content with top margin */}
         <div className="h-full pt-16 overflow-y-auto" onScroll={handleScroll}>
@@ -308,10 +349,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             `}
           >
             {/* Content centered within available space */}
-            <div 
-              className="w-full flex flex-col justify-center px-4 sm:px-6 lg:px-8"
-              style={{ maxWidth: contentMaxWidth }}
-            >
+            <div className={getContentContainerClasses()}>
               <div className="text-center">
                 {/* Always visible - River name */}
                 <div className="flex items-center justify-center">
@@ -375,11 +413,13 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
           {/* Tiles Area - Centered within available space */}
           <div className="flex justify-center py-6">
-            <div 
-              className="w-full px-4 sm:px-6 lg:px-8"
-              style={{ maxWidth: contentMaxWidth }}
-            >
+            <div className={getContentContainerClasses()}>
               <TilesManager data-testid="dashboard-tiles" />
+              {children && (
+                <div className="mt-6">
+                  {children}
+                </div>
+              )}
             </div>
           </div>
           

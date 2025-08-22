@@ -14,6 +14,9 @@ import SidebarToggle from '@/components/Sidebar/SidebarToggle';
 import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import type { RiverReach, ReachId, UserPreferences } from '@/types';
 
+// Export sidebar width for use in other components
+export const SIDEBAR_WIDTH = 400;
+
 // Types for our app state
 export type AppView = 'map' | 'dashboard';
 
@@ -399,7 +402,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </div>
             
             {/* Sidebar Overlay */}
-            <SidebarOverlay open={sidebarOpen}>
+            <SidebarOverlay open={sidebarOpen} width={SIDEBAR_WIDTH}>
               <Sidebar
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
                 savedPlaces={savedPlaces}
@@ -452,7 +455,10 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 {shouldShowDashboard ? (
                   <DashboardPanel
                     activeLocation={activeLocation}
+                    selectedStream={selectedStreamData}
                     flowUnit={userPreferences?.flowUnit}
+                    isSidebarCollapsed={!sidebarOpen}
+                    sidebarWidth={SIDEBAR_WIDTH}
                     onReturnToMap={() => setCurrentView('map')}
                   >
                     {children}

@@ -2,13 +2,14 @@
 'use client';
 
 import React from 'react';
+import { SIDEBAR_WIDTH } from '@/components/Layout/AppShell';
 
 interface SidebarOverlayProps {
   /** Whether the sidebar is open/visible */
   open: boolean;
   /** Sidebar content (typically the Sidebar component) */
   children: React.ReactNode;
-  /** Sidebar width in pixels (default: 320 to match w-80) */
+  /** Sidebar width in pixels (default from AppShell) */
   width?: number;
   /** Custom className for additional styling */
   className?: string;
@@ -29,7 +30,7 @@ interface SidebarOverlayProps {
 export function SidebarOverlay({
   open,
   children,
-  width = 400, // w-80 equivalent
+  width = SIDEBAR_WIDTH, // Default from AppShell
   className = '',
   'data-testid': testId,
 }: SidebarOverlayProps) {
