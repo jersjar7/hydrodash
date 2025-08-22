@@ -1,7 +1,7 @@
 // components/Layout/DashboardPanel.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { ReachId, RiverReach } from '@/types/models/RiverReach';
 import { RiskLevel } from '@/types/models/FlowForecast';
@@ -70,7 +70,6 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   onReturnToMap,
 }) => {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  const tilesAreaRef = useRef<HTMLDivElement>(null);
 
   // Helper function to check if location is RiverReach
   const isRiverReach = (location: any): location is RiverReach => {
@@ -169,7 +168,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     ? computeRisk(currentFlow, returnPeriods) 
     : 'normal';
 
-  // Handle scroll in tiles area to collapse/expand header
+  // Handle scroll to collapse/expand header
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
     const shouldCollapse = scrollTop > 50; // Collapse after 50px scroll
@@ -279,14 +278,14 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   return (
     <DashboardContext.Provider value={dashboardContextValue}>
       <div className={`h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}>
-        {/* Dashboard Header - Top 1/3 (collapsible) */}
+        
+        {/* Fixed Header */}
         <div 
           className={`
-            sticky top-0 z-10
             transition-all duration-500 ease-in-out
-            ${isHeaderCollapsed ? 'h-20' : 'h-1/3'}
+            ${isHeaderCollapsed ? 'h-20' : 'h-[33vh]'}
+            flex-shrink-0
             border-b border-white/20 dark:border-gray-700/30
-            overflow-hidden
           `}
         >
           <ResponsiveContainer maxWidth="7xl" padding="lg" center className="h-full">
@@ -314,10 +313,10 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                 </div>
               </div>
 
-              {/* Expandable content - Current flow */}
+              {/* Expandable content - Current flow cards */}
               <div className={`mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
                 {/* Current Flow */}
-                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
+                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
                   {flowLoading || returnPeriodsLoading ? (
                     <div className="flex items-center space-x-2">
@@ -339,7 +338,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                 </div>
 
                 {/* Additional stats placeholder */}
-                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
+                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
                   <div className="space-y-1">
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
@@ -351,20 +350,19 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
           </ResponsiveContainer>
         </div>
 
-        {/* Tiles Area - Remaining space (scrollable) */}
+        {/* Scrollable Content Area */}
         <div 
-          ref={tilesAreaRef}
           className="flex-1 overflow-y-auto"
           onScroll={handleScroll}
         >
           <ResponsiveContainer maxWidth="7xl" padding="lg" center>
             {children ? (
-              <div className="min-h-full">
+              <div className="py-6">
                 {children}
               </div>
             ) : (
-              <div className="min-h-full flex items-center justify-center">
-                <div className="text-center py-12">
+              <div className="py-12">
+                <div className="text-center mb-12">
                   <div className="text-gray-400 mb-6">
                     <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -373,12 +371,27 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     Tiles Area Coming Soon
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                     This area will be populated with customizable tiles for monitoring {locationName}.
                   </p>
                   <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-                    Scroll here to see header collapse behavior ↑
+                    Scroll down to see header collapse behavior ↓
                   </div>
+                </div>
+
+                {/* Test content */}
+                <div className="space-y-6">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <div key={i} className="bg-white/80 dark:bg-gray-800/80 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                        Demo Tile {i + 1}
+                      </h4>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        This is test content. The header should stay visible while this content scrolls.
+                      </p>
+                      <div className="h-24 bg-blue-100 dark:bg-blue-900/20 rounded"></div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
