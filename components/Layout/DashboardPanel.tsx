@@ -8,6 +8,7 @@ import { RiskLevel } from '@/types/models/FlowForecast';
 import { FlowUnit } from '@/types/models/UserPreferences';
 import { useShortRangeForecast, getCurrentFlow } from '@/hooks/useFlowData';
 import { useReturnPeriod } from '@/hooks/useReturnPeriods';
+import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 import { DashboardLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ResponsiveContainer from '@/components/common/ResponsiveContainer';
@@ -102,6 +103,18 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   };
 
   const { reachId, name: locationName } = getLocationData();
+
+  // Fetch reach metadata for actual river name
+  const { 
+    data: reachMetadata, 
+    isLoading: metadataLoading 
+  } = useReachMetadata(reachId, {
+    enabled: !!reachId,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Get the best available name (metadata > selectedStream > saved place > fallback)
+  const displayName = reachMetadata?.name || locationName || `Stream ${reachId}`;
 
   // Fetch flow data
   const { 
@@ -234,54 +247,34 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
   return (
     <DashboardContext.Provider value={dashboardContextValue}>
-      <div className={`h-full flex flex-col ${className}`}>
+      <div className={`h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}>
         {/* Dashboard Header - Top 1/3 (collapsible) */}
         <div 
           className={`
             transition-all duration-300 ease-in-out
             ${isHeaderCollapsed ? 'h-16' : 'h-1/3'}
-            bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-900
-            border-b border-gray-200 dark:border-gray-700
+            border-b border-white/20 dark:border-gray-700/30
             overflow-hidden
           `}
         >
           <ResponsiveContainer maxWidth="7xl" padding="lg" center className="h-full">
             <div className="h-full flex flex-col justify-center">
               {/* Always visible - River name */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {locationName}
-                    </h1>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                      <span>ID: {reachId}</span>
-                      {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
-                        <>
-                          <span>•</span>
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
-                        </>
-                      )}
-                    </div>
+              <div className="flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {displayName}
+                  </h1>
+                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span>ID: {reachId}</span>
+                    {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
+                      <>
+                        <span>•</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
+                      </>
+                    )}
                   </div>
                 </div>
-                
-                {onReturnToMap && (
-                  <button
-                    onClick={onReturnToMap}
-                    className="flex items-center px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    <span className="text-sm">Back to Map</span>
-                  </button>
-                )}
               </div>
 
               {/* Expandable content - Current flow */}
