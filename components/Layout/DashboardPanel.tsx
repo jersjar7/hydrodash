@@ -13,6 +13,7 @@ import { useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 import { DashboardLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ResponsiveContainer from '@/components/common/ResponsiveContainer';
+import TilesManager from '@/components/Layout/TilesManager';
 
 // Stream metadata interface
 interface StreamMetadata {
@@ -41,8 +42,6 @@ export const useDashboardContext = () => {
 };
 
 interface DashboardPanelProps {
-  /** Tiles/widget children */
-  children?: React.ReactNode;
   /** Currently active location from AppShell (SavedPlace or RiverReach) */
   activeLocation?: SavedPlace | RiverReach | null;
   /** Selected stream data from map modal */
@@ -60,7 +59,6 @@ interface DashboardPanelProps {
 }
 
 const DashboardPanel: React.FC<DashboardPanelProps> = ({
-  children,
   activeLocation,
   selectedStream,
   loading = false,
@@ -277,125 +275,83 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
   return (
     <DashboardContext.Provider value={dashboardContextValue}>
-      <div className={`h-full flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}>
-        
-        {/* Fixed Header */}
-        <div 
-          className={`
-            transition-all duration-500 ease-in-out
-            ${isHeaderCollapsed ? 'h-20' : 'h-[33vh]'}
-            flex-shrink-0
-            border-b border-white/20 dark:border-gray-700/30
-          `}
-        >
-          <ResponsiveContainer maxWidth="7xl" padding="lg" center className="h-full">
-            <div className="h-full flex flex-col justify-center">
-              {/* Always visible - River name */}
-              <div className="flex items-center justify-center">
-                <div className="text-center">
-                  <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-3xl' : 'text-2xl'}`}>
-                    {displayName}
-                  </h1>
-                  {geoLocation && (
-                    <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-xl' : 'text-lg'}`}>
-                      {geoLocation.display}
-                    </p>
-                  )}
-                  <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-base' : 'text-sm'}`}>
-                    <span>ID: {reachId}</span>
-                    {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
-                      <>
-                        <span>•</span>
-                        <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
-                      </>
+      <div className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}>
+        {/* Main Content with top margin */}
+        <div className="h-full pt-16 overflow-y-auto" onScroll={handleScroll}>
+          
+          {/* Collapsible Header */}
+          <div 
+            className={`
+              transition-all duration-500 ease-in-out
+              ${isHeaderCollapsed ? 'h-20' : 'h-[33vh]'}
+              border-b border-white/20 dark:border-gray-700/30
+            `}
+          >
+            <ResponsiveContainer maxWidth="7xl" padding="lg" center className="h-full">
+              <div className="h-full flex flex-col justify-center">
+                {/* Always visible - River name */}
+                <div className="flex items-center justify-center">
+                  <div className="text-center">
+                    <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-3xl' : 'text-2xl'}`}>
+                      {displayName}
+                    </h1>
+                    {geoLocation && (
+                      <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-xl' : 'text-lg'}`}>
+                        {geoLocation.display}
+                      </p>
+                    )}
+                    <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-base' : 'text-sm'}`}>
+                      <span>ID: {reachId}</span>
+                      {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
+                        <>
+                          <span>•</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expandable content - Current flow cards */}
+                <div className={`mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
+                  {/* Current Flow */}
+                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
+                    {flowLoading || returnPeriodsLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                        <span className="text-sm text-gray-500">Loading...</span>
+                      </div>
+                    ) : flowError ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {formatFlow(currentFlow)}
+                        </p>
+                        <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
+                          {riskLevel?.replace('_', ' ') || 'Unknown'}
+                        </p>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* Expandable content - Current flow cards */}
-              <div className={`mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
-                {/* Current Flow */}
-                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
-                  {flowLoading || returnPeriodsLoading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                      <span className="text-sm text-gray-500">Loading...</span>
-                    </div>
-                  ) : flowError ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
-                  ) : (
+                  {/* Additional stats placeholder */}
+                  <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
                     <div className="space-y-1">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {formatFlow(currentFlow)}
-                      </p>
-                      <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
-                        {riskLevel?.replace('_', ' ') || 'Unknown'}
-                      </p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
                     </div>
-                  )}
-                </div>
-
-                {/* Additional stats placeholder */}
-                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
                   </div>
                 </div>
               </div>
-            </div>
-          </ResponsiveContainer>
-        </div>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Scrollable Content Area */}
-        <div 
-          className="flex-1 overflow-y-auto"
-          onScroll={handleScroll}
-        >
-          <ResponsiveContainer maxWidth="7xl" padding="lg" center>
-            {children ? (
-              <div className="py-6">
-                {children}
-              </div>
-            ) : (
-              <div className="py-12">
-                <div className="text-center mb-12">
-                  <div className="text-gray-400 mb-6">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Tiles Area Coming Soon
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    This area will be populated with customizable tiles for monitoring {locationName}.
-                  </p>
-                  <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-                    Scroll down to see header collapse behavior ↓
-                  </div>
-                </div>
-
-                {/* Test content */}
-                <div className="space-y-6">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <div key={i} className="bg-white/80 dark:bg-gray-800/80 rounded-lg p-6">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                        Demo Tile {i + 1}
-                      </h4>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        This is test content. The header should stay visible while this content scrolls.
-                      </p>
-                      <div className="h-24 bg-blue-100 dark:bg-blue-900/20 rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </ResponsiveContainer>
+          {/* Tiles Area - Managed by TilesManager */}
+          <TilesManager data-testid="dashboard-tiles" />
+          
         </div>
       </div>
     </DashboardContext.Provider>
