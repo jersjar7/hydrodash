@@ -19,7 +19,7 @@ export const config = {
     },
     map: {
       defaultCenter: { lat: 40.7128, lng: -74.0060 }, // Default to NYC
-      defaultZoom: 10,
+      defaultZoom: 16,
       mapbox: {
         publicToken: 'YOUR_MAPBOX_PUBLIC_TOKEN_HERE',
         tilesetId: 'jersondevs.dopm8y3j',       // your tileset
