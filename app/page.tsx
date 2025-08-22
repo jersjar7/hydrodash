@@ -122,13 +122,8 @@ const MapScreen = () => {
   const [showStreamModal, setShowStreamModal] = useState(false);
   const [selectedStreamData, setSelectedStreamData] = useState<StreamMetadata | undefined>(undefined);
   
-  // ✅ UPDATED: Get context without needing sidebarOpen for MapPanel
-  const { 
-    setCurrentView, 
-    setActiveLocation, 
-    addSavedPlace, 
-    userPreferences
-  } = useAppContext();
+  // Get context for user preferences only (StreamPopup handles save/dashboard operations)
+  const { userPreferences } = useAppContext();
 
   // Handle stream selection from map
   const handleStreamClick = (reachId: string) => {
@@ -148,37 +143,6 @@ const MapScreen = () => {
     setSelectedStreamData(undefined);
   };
 
-  // Handle "Add to Saved Places" from modal
-  const handleAddToSaved = (streamData: StreamMetadata) => {
-    const newSavedPlace: SavedPlace = {
-      id: `place_${Date.now()}`,
-      name: streamData.name || `Stream ${streamData.reachId}`,
-      reachId: streamData.reachId,
-      lat: streamData.lat,
-      lon: streamData.lon,
-      createdAt: new Date().toISOString(),
-    };
-    
-    addSavedPlace(newSavedPlace);
-    setShowStreamModal(false);
-  };
-
-  // Handle "View Dashboard" from modal
-  const handleViewDashboard = (streamData: StreamMetadata) => {
-    const tempLocation: SavedPlace = {
-      id: `temp_${Date.now()}`,
-      name: streamData.name || `Stream ${streamData.reachId}`,
-      reachId: streamData.reachId,
-      lat: streamData.lat,
-      lon: streamData.lon,
-      createdAt: new Date().toISOString(),
-    };
-    
-    setActiveLocation(tempLocation);
-    setCurrentView('dashboard');
-    setShowStreamModal(false);
-  };
-
   return (
     <MapPanel
       modalContent={(showStreamModal && selectedStreamData) ? (
@@ -188,14 +152,9 @@ const MapScreen = () => {
           streamData={selectedStreamData}
           flowUnit={userPreferences.flowUnit}
           tempUnit={userPreferences.tempUnit}
-          onAddToSaved={handleAddToSaved}
-          onViewDashboard={handleViewDashboard}
-          // ✅ NOTE: StreamPopup now fetches flow data internally using hooks
         />
       ) : undefined}
       onModalBackdropClick={handleCloseModal}
-      
-      // ✅ REMOVED: sidebar props - MapPanel now uses full-screen backdrop with z-index hierarchy
       
       /* Stream ID Search Bar (positioned at top-right) */
       streamSearchOverlay={

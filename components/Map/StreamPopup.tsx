@@ -1,7 +1,7 @@
 // components/Map/StreamPopup.tsx
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ReachId } from '@/types/models/RiverReach';
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { RiskLevel } from '@/types/models/FlowForecast';
@@ -9,6 +9,7 @@ import { FlowUnit, TempUnit } from '@/types/models/UserPreferences';
 import FlowStatus from '@/components/display/FlowStatus';
 import WeatherSummary, { WeatherData } from '@/components/display/WeatherSummary';
 import Toast from '@/components/common/Toast';
+import { useAppContext } from '@/components/Layout/AppShell';
 
 // Import flow data hooks and utilities
 import { useShortRangeForecast, getCurrentFlow } from '@/hooks/useFlowData';
@@ -45,15 +46,15 @@ interface StreamPopupProps {
   flowUnit?: FlowUnit;
   /** Temperature unit preference */
   tempUnit?: TempUnit;
-  /** Whether location is already saved */
+  /** Whether location is already saved (legacy - computed from context) */
   isAlreadySaved?: boolean;
-  /** Loading state for save action */
+  /** Loading state for save action (legacy - computed from context) */
   isSaving?: boolean;
-  /** Callback to add to saved places */
+  /** Callback to add to saved places (legacy - uses context) */
   onAddToSaved?: (streamData: StreamMetadata) => void;
-  /** Callback to view dashboard */
+  /** Callback to view dashboard (legacy - uses context) */
   onViewDashboard?: (streamData: StreamMetadata) => void;
-  /** Callback to remove from saved places */
+  /** Callback to remove from saved places (legacy - uses context) */
   onRemoveFromSaved?: (reachId: ReachId) => void;
   /** Custom className */
   className?: string;
@@ -66,13 +67,17 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
   weatherData,
   flowUnit = 'CFS',
   tempUnit = 'F',
-  isAlreadySaved = false,
-  isSaving = false,
-  onAddToSaved,
-  onViewDashboard,
-  onRemoveFromSaved,
   className = '',
 }) => {
+  
+  // Get context for save/remove operations
+  const { savedPlaces, saveLocationFromReach, removeSavedPlace, viewStreamDashboard } = useAppContext();
+  
+  // Local loading state for save operations
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Compute if already saved from context
+  const isAlreadySaved = !!(streamData && savedPlaces.some(p => p.reachId === streamData.reachId));
   
   // Fetch official river metadata when popup is open and we have stream data
   const {
@@ -154,31 +159,60 @@ const StreamPopup: React.FC<StreamPopupProps> = ({
     };
   }, [isOpen, onClose]);
 
-  // Handle save action
-  const handleSave = () => {
-    if (streamData && onAddToSaved && !isAlreadySaved) {
-      onAddToSaved(streamData);
+  // Handle save action using context
+  const handleSave = async () => {
+    if (!streamData || isAlreadySaved || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      await saveLocationFromReach({
+        reachId: streamData.reachId,
+        name: streamData.name ?? `Reach ${streamData.reachId}`,
+        latitude: streamData.lat ?? 0,
+        longitude: streamData.lon ?? 0,
+        streamflow: [],
+      });
+      console.log('✅ Successfully saved stream to places');
+    } catch (error) {
+      console.error('❌ Failed to save stream:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Handle remove action
-  const handleRemove = () => {
-    if (streamData && onRemoveFromSaved && isAlreadySaved) {
-      onRemoveFromSaved(streamData.reachId);
+  // Handle remove action using context
+  const handleRemove = async () => {
+    if (!streamData || !isAlreadySaved || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      const match = savedPlaces.find(p => p.reachId === streamData.reachId);
+      if (match) {
+        await removeSavedPlace(match.id);
+        console.log('🗑️ Successfully removed stream from places');
+      }
+    } catch (error) {
+      console.error('❌ Failed to remove stream:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Handle dashboard navigation
+  // Handle dashboard navigation using context
   const handleViewDashboard = () => {
-    if (streamData && onViewDashboard) {
-      onViewDashboard(streamData);
-    }
+    if (!streamData) return;
+    
+    viewStreamDashboard({
+      reachId: streamData.reachId,
+      name: streamData.name,
+      lat: streamData.lat ?? 0,
+      lon: streamData.lon ?? 0,
+    });
   };
 
   if (!isOpen) return null;
 
-  // ✅ FIXED: Removed the backdrop wrapper - MapPanel handles backdrop now
-  // Just return the modal content without its own backdrop
+  // Return the modal content without its own backdrop
   return (
     <div
       className={`

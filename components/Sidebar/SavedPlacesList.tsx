@@ -8,7 +8,6 @@ import { RiskLevel } from '@/types/models/FlowForecast';
 import { ReturnPeriodThresholds } from '@/types/models/ReturnPeriod';
 import { WeatherData } from '@/components/display/WeatherSummary';
 import { useAppContext } from '@/components/Layout/AppShell';
-import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useShortRangeForecast, getCurrentFlow, getPeakFlow } from '@/hooks/useFlowData';
 import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { useReturnPeriods } from '@/hooks/useReturnPeriods';
@@ -392,6 +391,8 @@ const SavedPlaceCard: React.FC<SavedPlaceCardProps> = ({
 
 // Main SavedPlacesList component
 interface SavedPlacesListProps {
+  /** Places array passed from parent */
+  places: SavedPlace[];
   /** Currently active/selected place */
   activePlace?: SavedPlace | null;
   /** Flow unit preference override */
@@ -411,6 +412,7 @@ interface SavedPlacesListProps {
 }
 
 const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
+  places,
   activePlace,
   flowUnit,
   onPlaceSelect,
@@ -420,24 +422,11 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
   showAddButton = true,
   showFlowData = true,
 }) => {
-  // Get user preferences from context if flowUnit not provided
-  const { userPreferences } = useAppContext();
+  // Get user preferences and remove function from context
+  const { userPreferences, removeSavedPlace } = useAppContext();
   const effectiveFlowUnit = flowUnit || userPreferences?.flowUnit || 'CFS';
 
-  // Use the saved places hook to get real data from localStorage
-  const {
-    places,
-    isLoading,
-    error,
-    removePlace,
-    canAddMore,
-    getPlaceCount,
-  } = useSavedPlaces({
-    autoSave: true,
-    maxPlaces: 20, // Reasonable limit for UI performance
-  });
-
-  // ✅ NEW: Fetch return periods for all places with reach IDs
+  // Fetch return periods for all places with reach IDs
   const reachIds = places.map(p => p.reachId).filter(Boolean);
   const { 
     data: returnPeriodsData, 
@@ -468,7 +457,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
     if (!confirmed) return;
 
     try {
-      await removePlace(place.id);
+      await removeSavedPlace(place.id);
       console.log(`Removed saved place: ${place.name}`);
     } catch (error) {
       console.error('Failed to remove place:', error);
@@ -496,42 +485,6 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className={`flex justify-center py-8 ${className}`}>
-        <LoadingSpinner size="md" variant="dots" color="primary" text="Loading saved places..." />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className={`text-center py-8 ${className}`}>
-        <div className="text-red-500 mb-2">
-          <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <p className="text-sm text-white mb-3">
-          Failed to load saved places
-        </p>
-        <p className="text-xs text-white mb-3">
-          {error}
-        </p>
-        {onAddPlace && (
-          <button
-            onClick={handleAddPlace}
-            className="text-sm text-white hover:text-white"
-          >
-            Try adding a place
-          </button>
-          )}
-      </div>
-    );
-  }
-
   // Empty state
   if (places.length === 0) {
     return (
@@ -548,7 +501,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
         <p className="text-xs text-white mb-4">
           Add locations from the map to monitor flow and weather conditions
         </p>
-        {showAddButton && onAddPlace && canAddMore() && (
+        {showAddButton && onAddPlace && (
           <button
             onClick={handleAddPlace}
             className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-white bg-white/20 hover:bg-white/30 transition-colors"
@@ -592,7 +545,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
               onSelect={handlePlaceSelect}
               onEdit={handlePlaceEdit}
               onDelete={handlePlaceDelete}
-              // ✅ NEW: Pass return periods data to each card
+              // Pass return periods data to each card
               returnPeriods={placeReturnPeriods}
               returnPeriodsLoading={returnPeriodsLoading}
             />
@@ -601,7 +554,7 @@ const SavedPlacesList: React.FC<SavedPlacesListProps> = ({
       </div>
 
       {/* Max places warning */}
-      {!canAddMore() && (
+      {places.length >= 20 && (
         <div className="text-xs text-white text-center py-2 bg-white/20 rounded-lg">
           Maximum number of saved places reached (20)
         </div>

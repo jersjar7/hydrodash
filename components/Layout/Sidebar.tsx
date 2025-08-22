@@ -6,7 +6,6 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import UnitsToggle, { type FlowUnit } from '@/components/settings/UnitsToggle';
 import SidebarHeader from '@/components/Sidebar/SidebarHeader';
 import SavedPlacesList from '@/components/Sidebar/SavedPlacesList';
-import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import { useAppContext } from '@/components/Layout/AppShell';
 import type { 
   ActiveLocation, 
@@ -26,7 +25,7 @@ export interface SidebarProps {
   isOpen?: boolean;
   /** Callback to toggle sidebar */
   onToggle: () => void;
-  /** Saved places list (passed from AppShell but we use hook instead) */
+  /** Saved places list (passed from AppShell but we use context instead) */
   savedPlaces?: SavedPlace[];
   /** Currently active location (passed from AppShell but we use context instead) */
   activeLocation?: ActiveLocation;
@@ -66,20 +65,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   sidebarOpen = false,
 }) => {
-  // Get app context for activeLocation and setActiveLocation
-  const { activeLocation, setActiveLocation, currentView: contextCurrentView, setCurrentView: contextSetCurrentView } = useAppContext();
+  // Get app context for activeLocation, savedPlaces, and view management
+  const { 
+    savedPlaces, 
+    activeLocation, 
+    setActiveLocation, 
+    currentView: contextCurrentView, 
+    setCurrentView: contextSetCurrentView 
+  } = useAppContext();
 
   // Use props if provided, otherwise fall back to context
   const actualCurrentView = currentView || contextCurrentView;
   const actualSetCurrentView = onViewChange || contextSetCurrentView;
-
-  // Get saved places data from hook
-  const {
-    places: savedPlaces,
-    isLoading: savedPlacesLoading,
-    error: savedPlacesError,
-    getPlaceCount,
-  } = useSavedPlaces();
 
   // Get standardized location properties for comparison
   const activeLocationProps = getLocationProps(activeLocation || null);
@@ -175,6 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 flex flex-col flex-1 min-h-0">
           <div className="flex-1 min-h-0 overflow-y-auto">
             <SavedPlacesList
+              places={savedPlaces}
               activePlace={activeSavedPlace}
               flowUnit={preferences.flowUnit}
               onPlaceSelect={handlePlaceSelect}

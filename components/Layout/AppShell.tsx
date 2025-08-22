@@ -11,7 +11,7 @@ import MapPanel from '@/components/Layout/MapPanel';
 import DashboardPanel from '@/components/Layout/DashboardPanel';
 import Sidebar from '@/components/Layout/Sidebar';
 import SidebarToggle from '@/components/Sidebar/SidebarToggle';
-import { useSavedPlaces } from '@/hooks/useSavedPlaces'; // 🔥 Import the hook
+import { useSavedPlaces } from '@/hooks/useSavedPlaces';
 import type { RiverReach, ReachId, UserPreferences } from '@/types';
 
 // Types for our app state
@@ -67,6 +67,8 @@ export interface AppContextType extends AppState {
   removeSavedPlace: (placeId: string) => Promise<void>;
   // New helper to create saved place from river reach
   saveLocationFromReach: (reach: RiverReach, type?: SavedPlace['type']) => Promise<void>;
+  // Helper to check if a reach is already saved
+  hasPlace: (reachId: ReachId) => boolean;
   // Helper to get standardized location properties
   getActiveLocationProps: () => ReturnType<typeof getLocationProps>;
   // New modal control functions
@@ -160,7 +162,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [streamModalOpen, setStreamModalOpen] = useState(false);
   const [selectedStreamData, setSelectedStreamData] = useState<StreamModalData | null>(null);
 
-  // 🔥 Use the saved places hook
+  // Get saved places data from hook (single source of truth)
   const {
     places: savedPlaces,
     addPlace,
@@ -209,9 +211,8 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     loadUserData();
   }, []);
 
-  // 🔥 FIX: Separate effect for setting active location to prevent loops
+  // Set first saved place as active if none is set and places exist
   useEffect(() => {
-    // Set first saved place as active if none is set and places exist
     if (savedPlaces.length > 0 && !activeLocation) {
       setActiveLocation(savedPlaces[0]);
     }
@@ -238,7 +239,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   }, [currentView, isMobile]);
 
-  // 🔥 FIX: Simplified helper functions
+  // Helper to add a saved place
   const addSavedPlace = async (place: SavedPlace): Promise<SavedPlace> => {
     try {
       const result = await addPlace({
@@ -265,6 +266,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   };
 
+  // Helper to remove a saved place
   const removeSavedPlace = async (placeId: string): Promise<void> => {
     try {
       await removePlace(placeId);
@@ -280,7 +282,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     }
   };
 
-  // New helper to create saved place from river reach
+  // Helper to create saved place from river reach
   const saveLocationFromReach = async (reach: RiverReach, type: SavedPlace['type'] = 'other'): Promise<void> => {
     const savedPlace: SavedPlace = {
       id: crypto.randomUUID(),
@@ -296,7 +298,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     await addSavedPlace(savedPlace);
   };
 
-  // New modal control functions
+  // Modal control functions
   const openStreamModal = (streamData: StreamModalData) => {
     setSelectedStreamData(streamData);
     setStreamModalOpen(true);
@@ -337,7 +339,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     activeLocation,
     sidebarOpen,
     userPreferences,
-    savedPlaces, // Now comes from the hook
+    savedPlaces,
     streamModalOpen,
     selectedStreamData,
     setCurrentView,
@@ -348,6 +350,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
     addSavedPlace,
     removeSavedPlace,
     saveLocationFromReach,
+    hasPlace,
     getActiveLocationProps,
     openStreamModal,
     closeStreamModal,
