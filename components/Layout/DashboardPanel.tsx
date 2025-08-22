@@ -9,6 +9,7 @@ import { FlowUnit } from '@/types/models/UserPreferences';
 import { useShortRangeForecast, getCurrentFlow } from '@/hooks/useFlowData';
 import { useReturnPeriod } from '@/hooks/useReturnPeriods';
 import { useReachMetadata } from '@/hooks/useReachMetadata';
+import { useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 import { DashboardLoadingSpinner } from '@/components/common/LoadingSpinner';
 import ResponsiveContainer from '@/components/common/ResponsiveContainer';
@@ -115,6 +116,36 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
   // Get the best available name (metadata > selectedStream > saved place > fallback)
   const displayName = reachMetadata?.name || locationName || `Stream ${reachId}`;
+
+  // Get coordinates for geocoding (priority: reachMetadata > selectedStream > activeLocation)
+  const getCoordinates = () => {
+    if (reachMetadata?.latitude && reachMetadata?.longitude) {
+      return { latitude: reachMetadata.latitude, longitude: reachMetadata.longitude };
+    }
+    if (selectedStream?.lat && selectedStream?.lon) {
+      return { latitude: selectedStream.lat, longitude: selectedStream.lon };
+    }
+    if (activeLocation) {
+      if (isRiverReach(activeLocation) && activeLocation.latitude && activeLocation.longitude) {
+        return { latitude: activeLocation.latitude, longitude: activeLocation.longitude };
+      }
+      if (!isRiverReach(activeLocation) && activeLocation.lat && activeLocation.lon) {
+        return { latitude: activeLocation.lat, longitude: activeLocation.lon };
+      }
+    }
+    return null;
+  };
+
+  const coordinates = getCoordinates();
+
+  // Get geographic location
+  const { 
+    location: geoLocation, 
+    isLoading: geoLoading 
+  } = useReverseGeocode(coordinates, {
+    enabled: !!coordinates,
+    useCache: true
+  });
 
   // Fetch flow data
   const { 
@@ -251,8 +282,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
         {/* Dashboard Header - Top 1/3 (collapsible) */}
         <div 
           className={`
-            transition-all duration-300 ease-in-out
-            ${isHeaderCollapsed ? 'h-16' : 'h-1/3'}
+            sticky top-0 z-10
+            transition-all duration-500 ease-in-out
+            ${isHeaderCollapsed ? 'h-20' : 'h-1/3'}
             border-b border-white/20 dark:border-gray-700/30
             overflow-hidden
           `}
@@ -262,10 +294,15 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
               {/* Always visible - River name */}
               <div className="flex items-center justify-center">
                 <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-500 ${isHeaderCollapsed ? 'text-3xl' : 'text-2xl'}`}>
                     {displayName}
                   </h1>
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  {geoLocation && (
+                    <p className={`text-gray-700 dark:text-gray-300 mt-1 transition-all duration-500 ${isHeaderCollapsed ? 'text-xl' : 'text-lg'}`}>
+                      {geoLocation.display}
+                    </p>
+                  )}
+                  <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-500 ${isHeaderCollapsed ? 'text-base' : 'text-sm'}`}>
                     <span>ID: {reachId}</span>
                     {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
                       <>
@@ -278,40 +315,38 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
               </div>
 
               {/* Expandable content - Current flow */}
-              {!isHeaderCollapsed && (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Current Flow */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
-                    {flowLoading || returnPeriodsLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                        <span className="text-sm text-gray-500">Loading...</span>
-                      </div>
-                    ) : flowError ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
-                    ) : (
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {formatFlow(currentFlow)}
-                        </p>
-                        <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
-                          {riskLevel?.replace('_', ' ') || 'Unknown'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Additional stats placeholder */}
-                  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
-                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
-                    <div className="space-y-1">
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
+              <div className={`mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500 ${isHeaderCollapsed ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
+                {/* Current Flow */}
+                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Flow</h3>
+                  {flowLoading || returnPeriodsLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      <span className="text-sm text-gray-500">Loading...</span>
                     </div>
+                  ) : flowError ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatFlow(currentFlow)}
+                      </p>
+                      <p className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
+                        {riskLevel?.replace('_', ' ') || 'Unknown'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional stats placeholder */}
+                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 dark:border-gray-700/20">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">24h Trend</h3>
+                  <div className="space-y-1">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">--</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Coming soon</p>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </ResponsiveContainer>
         </div>
