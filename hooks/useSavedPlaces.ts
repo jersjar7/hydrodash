@@ -492,25 +492,3 @@ export function useSavedPlaces(
 function generatePlaceId(): string {
   return `place_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
-
-// ========================================
-// Utility Hooks
-// ========================================
-
-/**
- * Hook to check if a specific reach is saved
- * Useful for "Add to Saved Places" button states
- */
-export function useIsPlaceSaved(reachId: ReachId | null) {
-  const { hasPlace } = useSavedPlaces();
-  return reachId ? hasPlace(reachId) : false;
-}
-
-/**
- * Hook to get a saved place by reach ID
- * Useful for displaying saved place info
- */
-export function useSavedPlace(reachId: ReachId | null) {
-  const { getPlaceByReachId } = useSavedPlaces();
-  return reachId ? getPlaceByReachId(reachId) : null;
-}
