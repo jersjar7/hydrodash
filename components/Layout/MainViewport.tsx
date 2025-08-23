@@ -31,7 +31,7 @@ export function MainViewport({
   return (
     <div
       className={`
-        absolute inset-0 overflow-hidden
+        h-full w-full overflow-hidden
         ${className}
       `.trim()}
       data-testid={testId}

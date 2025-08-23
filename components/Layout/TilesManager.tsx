@@ -252,11 +252,11 @@ const TilesManager: React.FC<TilesManagerProps> = ({
       <div className="p-6">
         <div 
           ref={containerRef}
-          className="relative bg-gradient-to-br from-gray-50/50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50"
+          className="relative rounded-xl border border-gray-200/50 dark:border-gray-700/50"
           style={{
             width: containerDimensions.width,
             height: containerDimensions.height,
-            minHeight: '1600px'
+            minHeight: '2600px'
           }}
         >
           {/* Grid background */}

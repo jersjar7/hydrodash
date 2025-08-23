@@ -1,7 +1,10 @@
 // components/Layout/DashboardPanel.tsx
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
+// Import motion components and hooks from Framer Motion
+import { motion, useScroll, useTransform } from 'framer-motion';
+
 import { SavedPlace } from '@/types/models/SavedPlace';
 import { ReachId, RiverReach } from '@/types/models/RiverReach';
 import { RiskLevel } from '@/types/models/FlowForecast';
@@ -12,7 +15,6 @@ import { useReachMetadata } from '@/hooks/useReachMetadata';
 import { useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { computeRisk } from '@/lib/utils/riskCalculator';
 import { DashboardLoadingSpinner } from '@/components/common/LoadingSpinner';
-import ResponsiveContainer from '@/components/common/ResponsiveContainer';
 import TilesManager from '@/components/Layout/TilesManager';
 import { SIDEBAR_WIDTH } from '@/components/Layout/AppShell';
 
@@ -74,31 +76,9 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   className = '',
   onReturnToMap,
   isSidebarCollapsed = false,
-  sidebarWidth = SIDEBAR_WIDTH, // Default from AppShell
+  sidebarWidth = SIDEBAR_WIDTH,
 }) => {
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-
-  // Calculate dynamic positioning and content centering based on sidebar state
-  const layoutStyles = isSidebarCollapsed 
-    ? {
-        // Sidebar collapsed: use full viewport width
-        paddingLeft: '0',
-        paddingRight: '0',
-      }
-    : {
-        // Sidebar open: offset content to account for sidebar
-        paddingLeft: `${sidebarWidth}px`,
-        paddingRight: '0',
-      };
-
-  // Content container classes with improved centering
-  const getContentContainerClasses = () => {
-    const baseClasses = "w-full mx-auto px-4 sm:px-6 lg:px-8";
-    // Use responsive max-width based on sidebar state
-    const maxWidth = isSidebarCollapsed ? 'max-w-7xl' : 'max-w-6xl';
-    return `${baseClasses} ${maxWidth}`;
-  };
-
+  
   // Helper function to check if location is RiverReach
   const isRiverReach = (location: any): location is RiverReach => {
     return location && typeof location === 'object' && 'reachId' in location && !('id' in location);
@@ -196,237 +176,115 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
     ? computeRisk(currentFlow, returnPeriods) 
     : 'normal';
 
-  // Handle scroll to collapse/expand header
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    const shouldCollapse = scrollTop > 50; // Collapse after 50px scroll
-    
-    if (shouldCollapse !== isHeaderCollapsed) {
-      setIsHeaderCollapsed(shouldCollapse);
-    }
-  };
-
-  // Dashboard context value
-  const dashboardContextValue: DashboardContextType = {
-    activeLocation,
-    selectedStream,
-    reachId,
-  };
-
   // Format flow value
   const formatFlow = (flow: number | null): string => {
-    if (flow === null) return 'N/A';
-    return flowUnit === 'CFS' 
-      ? `${flow.toLocaleString()} CFS`
-      : `${(flow * 0.0283168).toFixed(1)} CMS`;
+    if (flow === null) return '--';
+    return `${Math.round(flow).toLocaleString()}`;
   };
 
   // Get risk level color
   const getRiskColor = (risk: RiskLevel): string => {
     switch (risk) {
-      case 'normal': return 'text-green-600 dark:text-green-400';
-      case 'elevated': return 'text-yellow-600 dark:text-yellow-400';
-      case 'high': return 'text-orange-600 dark:text-orange-400';
-      case 'flood': return 'text-red-600 dark:text-red-400';
-      default: return 'text-gray-600 dark:text-gray-400';
+      case 'normal': return 'text-green-300';
+      case 'elevated': return 'text-yellow-300';
+      case 'high': return 'text-orange-300';
+      case 'flood': return 'text-red-300';
+      default: return 'text-gray-400';
     }
   };
 
-  // Error state
-  if (error) {
-    return (
-      <div 
-        className={`h-full ${className}`} 
-        style={{
-          transition: 'padding 0.3s ease-in-out',
-          ...layoutStyles
-        }}
-      >
-        <div className="h-full flex items-center justify-center">
-          <div className={getContentContainerClasses()}>
-            <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm mx-auto">
-              <div className="text-red-500 mb-4">
-                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Dashboard Error
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
-              {onReturnToMap && (
-                <button
-                  onClick={onReturnToMap}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
-                >
-                  Return to Map
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // --- FRAMER MOTION SETUP ---
+  // 1. Create a ref for the scrollable container
+  const scrollRef = useRef(null);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div 
-        className={`relative h-full ${className}`} 
-        style={{
-          transition: 'padding 0.3s ease-in-out',
-          ...layoutStyles
-        }}
-      >
-        <DashboardLoadingSpinner text="Loading dashboard..." />
-      </div>
-    );
-  }
+  // 2. Track scroll progress within the container
+  const { scrollYProgress } = useScroll({ container: scrollRef });
 
-  // No location selected state
-  if (!reachId || !locationName) {
-    return (
-      <div 
-        className={`h-full ${className}`} 
-        style={{
-          transition: 'padding 0.3s ease-in-out',
-          ...layoutStyles
-        }}
-      >
-        <div className="h-full flex flex-col items-center justify-center">
-          <div className={getContentContainerClasses()}>
-            <div className="text-center">
-              <div className="text-gray-400 mb-6">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                No Location Selected
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                Select a stream from the map or choose a saved place to view its dashboard.
-              </p>
-              {onReturnToMap && (
-                <button
-                  onClick={onReturnToMap}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                  Browse Map
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // 3. Define the animation range. The animation will complete when the user
+  //    has scrolled 20% of the way down the container.
+  const animationEnd = 0.2;
 
-  return (
-  <DashboardContext.Provider value={dashboardContextValue}>
-    <div 
-      className={`h-full bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 ${className}`}
-      style={{
-        transition: 'padding 0.3s ease-in-out',
-        ...layoutStyles
-      }}
-    >
-      {/* Main scrolling container */}
-      <div 
-        className="h-full pt-16 overflow-y-auto"
-        onScroll={handleScroll}
-      >
-        {/* Simple sticky header */}
+  // 4. Create transformations that map scroll progress to styles
+  const headerHeight = useTransform(scrollYProgress, [0, animationEnd], ['400vh', '200px']);
+  const flowFontSize = useTransform(scrollYProgress, [0, animationEnd], [96, 28]);
+  const titleFontSize = useTransform(scrollYProgress, [0, animationEnd], [32, 24]);
+  const infoOpacity = useTransform(scrollYProgress, [0, animationEnd], [1, 0]);
+
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const shouldCollapse = e.currentTarget.scrollTop > 100;
+      if (shouldCollapse !== isHeaderCollapsed) {
+          setIsHeaderCollapsed(shouldCollapse);
+      }
+  };
+  
+  const layoutStyles = isSidebarCollapsed ? { paddingLeft: '0' } : { paddingLeft: `${sidebarWidth}px` };
+  const getContentContainerClasses = () => `w-full mx-auto px-4 sm:px-6 lg:px-8 ${isSidebarCollapsed ? 'max-w-7xl' : 'max-w-6xl'}`;
+  const dashboardContextValue = { activeLocation, selectedStream, reachId };
+
+  if (loading || !reachId || error) {
+    return (
         <div 
-          className={`
-            sticky top-0 z-50
-            transition-all duration-300 ease-in-out
-            ${isHeaderCollapsed ? 'h-32' : 'h-[40vh]'}
-            border-b border-white/20 dark:border-gray-700/30
-            flex items-center justify-center
-            overflow-hidden
-          `}
+            style={layoutStyles} 
+            className="flex items-center justify-center h-screen"
         >
-          <div className={getContentContainerClasses()}>
-            <div className="text-center">
-              {/* Always visible title */}
-              <div>
-                <h1 className={`font-bold text-gray-900 dark:text-white transition-all duration-300 ${isHeaderCollapsed ? 'text-3xl md:text-4xl' : 'text-4xl md:text-5xl lg:text-6xl'}`}>
-                  {displayName}
-                </h1>
-                {geoLocation && (
-                  <p className={`text-gray-700 dark:text-gray-300 mt-2 transition-all duration-300 ${isHeaderCollapsed ? 'text-lg md:text-xl' : 'text-2xl md:text-3xl'}`}>
-                    {geoLocation.display}
+            <DashboardLoadingSpinner />
+        </div>
+    );
+  }
+  
+  return (
+    <DashboardContext.Provider value={dashboardContextValue}>
+      <div
+        className={`h-screen overflow-hidden ${className}`}
+        style={{ transition: 'padding 0.3s ease-in-out', ...layoutStyles }}
+      >
+        <div ref={scrollRef} className="h-full w-full overflow-y-auto" onScroll={handleScroll}>
+          <motion.header 
+            style={{ height: headerHeight }}
+            className="sticky top-0 z-20 text-white"
+          >
+            <div className={`${getContentContainerClasses()} h-full`}>
+              <div className={`relative h-full flex transition-all duration-300
+                ${isHeaderCollapsed ? 'flex-row items-center justify-between' : 'flex-col items-center justify-center'}
+              `}>
+                
+                <motion.div layout="position">
+                  <motion.h1 style={{ fontSize: titleFontSize }} className="font-bold">
+                    {displayName}
+                  </motion.h1>
+                </motion.div>
+
+                <motion.div layout="position" className="flex items-end space-x-2 font-light">
+                  <motion.span style={{ fontSize: flowFontSize }}>
+                    {formatFlow(currentFlow)}
+                  </motion.span>
+                  <span className="pb-2 text-lg opacity-70">{flowUnit}</span>
+                </motion.div>
+
+                <motion.div 
+                  style={{ opacity: infoOpacity }} 
+                  className={`text-center ${isHeaderCollapsed ? 'hidden' : ''}`}
+                >
+                  <p className={`capitalize font-medium ${getRiskColor(riskLevel)}`}>
+                    {riskLevel} Risk
                   </p>
-                )}
-                <div className={`flex items-center justify-center space-x-2 text-gray-600 dark:text-gray-400 mt-2 transition-all duration-300 ${isHeaderCollapsed ? 'text-sm md:text-base' : 'text-lg md:text-xl'}`}>
-                  <span>ID: {reachId}</span>
-                  {!isRiverReach(activeLocation) && activeLocation && 'isPrimary' in activeLocation && activeLocation.isPrimary && (
-                    <>
-                      <span>•</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-medium">Primary Location</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Cards that disappear when collapsed */}
-              <div className={`mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto transition-all duration-300 ${isHeaderCollapsed ? 'opacity-0 scale-95 max-h-0 overflow-hidden' : 'opacity-100 scale-100 max-h-96'}`}>
-                {/* Current Flow */}
-                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
-                  <h3 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-3">Current Flow</h3>
-                  {flowLoading || returnPeriodsLoading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                      <span className="text-sm text-gray-500">Loading...</span>
-                    </div>
-                  ) : flowError ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Flow data unavailable</p>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-                        {formatFlow(currentFlow)}
-                      </p>
-                      <p className={`text-base font-medium capitalize ${getRiskColor(riskLevel)}`}>
-                        {riskLevel?.replace('_', ' ') || 'Unknown'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional stats */}
-                <div className="bg-white/70 dark:bg-gray-800/70 rounded-lg p-6 backdrop-blur-sm">
-                  <h3 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-3">24h Trend</h3>
-                  <div className="space-y-1">
-                    <p className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">--</p>
-                    <p className="text-base text-gray-500 dark:text-gray-400">Coming soon</p>
-                  </div>
-                </div>
+                  <p className="text-sm text-gray-400">
+                    {geoLoading ? '...' : (geoLocation as any)?.display}
+                  </p>
+                </motion.div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Content area - scrolls normally */}
-        <div className="py-8">
-          <div className={getContentContainerClasses()}>
-            <TilesManager data-testid="dashboard-tiles" />
-            {children && (
-              <div className="mt-8">
-                {children}
-              </div>
-            )}
-          </div>
+          </motion.header>
+          
+          <main className={`${getContentContainerClasses()} py-8`}>
+            <TilesManager />
+            {children && <div className="mt-8">{children}</div>}
+          </main>
         </div>
       </div>
-    </div>
-  </DashboardContext.Provider>
-);
+    </DashboardContext.Provider>
+  );
 };
 
 export default DashboardPanel;

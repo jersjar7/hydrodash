@@ -30,7 +30,7 @@ export function AppFrame({
       `.trim()}
       data-testid={testId}
     >
-      <main className="h-full min-h-screen relative z-10">
+      <main className="h-full min-h-screen relative z-10 pt-32">
         {children}
       </main>
     </div>
