@@ -234,7 +234,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
             <div className={`relative h-full flex transition-all duration-300 ${scrollYProgress.get() > 0.1 ? 'flex-row items-center justify-between' : 'flex-col items-center justify-center'}`}>
               <motion.div layout="position"><motion.h1 style={{ fontSize: titleFontSize }} className="font-bold">{displayName}</motion.h1></motion.div>
               <motion.div layout="position" className="flex items-end space-x-2 font-light"><motion.span style={{ fontSize: flowFontSize }}>{formatFlow(currentFlow)}</motion.span><span className="pb-2 text-lg opacity-70">{flowUnit}</span></motion.div>
-              <motion.div style={{ opacity: infoOpacity }} className={`text-center ${scrollYProgress.get() > 0.1 ? 'hidden' : ''}`}><p className={`capitalize font-medium ${getRiskColor(riskLevel)}`}>{riskLevel} Risk</p><p className="text-sm text-gray-400">{geoLoading ? '...' : (geoLocation as any)?.display}</p></motion.div>
+              <motion.div style={{ opacity: infoOpacity }} className={`text-center ${scrollYProgress.get() > 0.1 ? 'hidden' : ''}`}><p className={`capitalize font-medium ${getRiskColor(riskLevel)}`}>{riskLevel} Flow</p><p className="text-sm text-gray-400">{geoLoading ? '...' : (geoLocation as any)?.display}</p></motion.div>
             </div>
           </div>
         </motion.header>
