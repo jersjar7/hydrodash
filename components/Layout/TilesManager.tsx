@@ -150,11 +150,14 @@ const Tile: React.FC<TileProps> = ({ tile, onDragStart, isDragging }) => {
   );
 };
 
-// Grid background component showing the 20px grid
+// Grid background component showing the proper grid (220px steps, not 20px)
 const GridBackground: React.FC<{ 
   containerWidth: number; 
   containerHeight: number;
 }> = ({ containerWidth, containerHeight }) => {
+  // Use the actual grid step size (220px) instead of just GRID_SPACING (20px)
+  const STEP = 200 + GRID_SPACING; // CELL + GRID_SPACING = 220px
+  
   return (
     <div 
       className="absolute inset-0 opacity-10 pointer-events-none"
@@ -163,38 +166,10 @@ const GridBackground: React.FC<{
           linear-gradient(to right, rgba(156, 163, 175, 0.4) 1px, transparent 1px),
           linear-gradient(to bottom, rgba(156, 163, 175, 0.4) 1px, transparent 1px)
         `,
-        backgroundSize: `${GRID_SPACING}px ${GRID_SPACING}px`,
-        backgroundPosition: '0 0',
+        backgroundSize: `${STEP}px ${STEP}px`,
+        backgroundPosition: `${GRID_SPACING}px ${GRID_SPACING}px`, // Offset by gutter size
       }}
     />
-  );
-};
-
-// Instructions overlay component
-const InstructionsOverlay: React.FC<{ 
-  isVisible: boolean;
-  tileCount: number;
-}> = ({ isVisible, tileCount }) => {
-  if (!isVisible) return null;
-
-  return (
-    <div className="absolute top-6 left-6 z-30">
-      <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-200/40 dark:border-gray-700/40 shadow-lg max-w-sm">
-        <div className="flex items-center mb-2">
-          <svg className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-          </svg>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-            Drag tiles to rearrange
-          </span>
-        </div>
-        <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-          <p>• Tiles snap to {GRID_SPACING}px grid automatically</p>
-          <p>• Works like iPhone app organization</p>
-          <p>• {tileCount} tiles currently active</p>
-        </div>
-      </div>
-    </div>
   );
 };
 
@@ -202,7 +177,8 @@ const InstructionsOverlay: React.FC<{
 const DevelopmentInfo: React.FC<{ 
   tileCount: number;
   isValid: boolean;
-}> = ({ tileCount, isValid }) => {
+  containerInfo: { width: number; height: number; columns: number; rows: number };
+}> = ({ tileCount, isValid, containerInfo }) => {
   return (
     <div className="mt-6 text-center">
       <div className="inline-flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/30 rounded-lg px-4 py-2">
@@ -211,14 +187,17 @@ const DevelopmentInfo: React.FC<{
           🚧 Development Mode
         </span>
         <span className="border-l border-gray-300 dark:border-gray-600 pl-4">
-          {tileCount} placeholder tiles
+          {tileCount} tiles
         </span>
         <span className="border-l border-gray-300 dark:border-gray-600 pl-4">
           Grid: {isValid ? '✅ Valid' : '❌ Invalid'}
         </span>
+        <span className="border-l border-gray-300 dark:border-gray-600 pl-4">
+          {containerInfo.columns}×{containerInfo.rows} cells
+        </span>
       </div>
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-        iPhone-style grid system with {GRID_SPACING}px spacing • Real widgets coming soon
+        iPhone-style grid system with {GRID_SPACING}px gutters • Real widgets coming soon
       </p>
     </div>
   );
@@ -248,8 +227,9 @@ const TilesManager: React.FC<TilesManagerProps> = ({
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate container dimensions
-  const containerDimensions = calculateContainerDimensions(tiles);
+  // Calculate container dimensions - SOLUTION CHANGE 2: Use minColumns parameter
+  // This ensures the container width/height are exact multiples of the grid
+  const containerDimensions = calculateContainerDimensions(tiles, 4);
   const isValidLayout = validateTilePositions(tiles);
 
   // Notify parent of tile changes
@@ -305,7 +285,7 @@ const TilesManager: React.FC<TilesManagerProps> = ({
     );
   }, [dragState.tile, dragState.offset]);
 
-  // Handle drag end with iPhone-style snapping
+  // Handle drag end with iPhone-style snapping - SOLUTION CHANGE 1: Pass container bounds
   const handleMouseUp = useCallback(() => {
     if (!dragState.tile || !dragState.preview) {
       setDragState({ tile: null, offset: { x: 0, y: 0 }, preview: null });
@@ -314,11 +294,15 @@ const TilesManager: React.FC<TilesManagerProps> = ({
 
     const otherTiles = tiles.filter(t => t.id !== dragState.tile!.id);
     
-    // Find the nearest available position using iPhone-style logic
+    // SOLUTION CHANGE 1: Get the active column count of the container so we constrain placement
+    const { columns } = calculateContainerDimensions(otherTiles);
+    
+    // Find the nearest available position using iPhone-style logic with container bounds
     const finalPosition = findNearestAvailablePosition(
       dragState.tile, 
       dragState.preview, 
-      otherTiles
+      otherTiles,
+      columns // <-- NEW: bound snapping to container grid
     );
     
     // Apply the final snapped position
@@ -351,9 +335,9 @@ const TilesManager: React.FC<TilesManagerProps> = ({
 
   // Auto-arrange tiles function (for development/testing)
   const handleAutoArrange = useCallback(() => {
-    const arranged = autoArrangeTiles(tiles);
+    const arranged = autoArrangeTiles(tiles, containerDimensions.columns);
     setTiles(arranged);
-  }, [tiles]);
+  }, [tiles, containerDimensions.columns]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -372,14 +356,14 @@ const TilesManager: React.FC<TilesManagerProps> = ({
   return (
     <div className={`h-full overflow-auto ${className}`} data-testid={testId}>
       <div className="p-6">
-        {/* Main tile container */}
+        {/* Main tile container - SOLUTION CHANGE 2: Container dimensions are now exact grid multiples */}
         <div 
           ref={containerRef}
           className="relative rounded-xl border border-gray-200/30 dark:border-gray-700/30 bg-transparent"
           style={{
-            width: containerDimensions.width,
-            height: containerDimensions.height,
-            minHeight: '1000px'
+            width: containerDimensions.width,   // exact multiple of (CELL + GRID_SPACING) + leading gutter
+            height: containerDimensions.height, // grows with rows  
+            minHeight: '800px',                 // optional minimum
           }}
         >
           {/* Grid background */}
@@ -398,12 +382,6 @@ const TilesManager: React.FC<TilesManagerProps> = ({
             />
           ))}
 
-          {/* Instructions overlay */}
-          <InstructionsOverlay 
-            isVisible={!dragState.tile} 
-            tileCount={tiles.length}
-          />
-
           {/* Debug overlay for invalid layouts */}
           {!isValidLayout && (
             <div className="absolute top-6 right-6 bg-red-500/90 text-white p-3 rounded-lg text-sm">
@@ -416,6 +394,7 @@ const TilesManager: React.FC<TilesManagerProps> = ({
         <DevelopmentInfo 
           tileCount={tiles.length}
           isValid={isValidLayout}
+          containerInfo={containerDimensions}
         />
 
         {/* Development controls */}

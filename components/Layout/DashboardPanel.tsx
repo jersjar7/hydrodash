@@ -205,7 +205,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
   const animationEnd = 0.1;
 
   // 4. Create transformations that map scroll progress to styles
-  const headerHeight = useTransform(scrollYProgress, [0, animationEnd], ['400vh', '400px']);
+  const headerHeight = useTransform(scrollYProgress, [0, animationEnd], ['250vh', '400px']);
   const flowFontSize = useTransform(scrollYProgress, [0, animationEnd], [96, 28]);
   const titleFontSize = useTransform(scrollYProgress, [0, animationEnd], [32, 24]);
   const infoOpacity = useTransform(scrollYProgress, [0, animationEnd], [1, 0]);
