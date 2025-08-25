@@ -202,81 +202,48 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({
 
   // 3. Define the animation range. The animation will complete when the user
   //    has scrolled 20% of the way down the container.
-  const animationEnd = 0.2;
+  const animationEnd = 0.1;
 
   // 4. Create transformations that map scroll progress to styles
-  const headerHeight = useTransform(scrollYProgress, [0, animationEnd], ['400vh', '200px']);
+  const headerHeight = useTransform(scrollYProgress, [0, animationEnd], ['400vh', '400px']);
   const flowFontSize = useTransform(scrollYProgress, [0, animationEnd], [96, 28]);
   const titleFontSize = useTransform(scrollYProgress, [0, animationEnd], [32, 24]);
   const infoOpacity = useTransform(scrollYProgress, [0, animationEnd], [1, 0]);
 
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-      const shouldCollapse = e.currentTarget.scrollTop > 100;
-      if (shouldCollapse !== isHeaderCollapsed) {
-          setIsHeaderCollapsed(shouldCollapse);
-      }
-  };
-  
   const layoutStyles = isSidebarCollapsed ? { paddingLeft: '0' } : { paddingLeft: `${sidebarWidth}px` };
   const getContentContainerClasses = () => `w-full mx-auto px-4 sm:px-6 lg:px-8 ${isSidebarCollapsed ? 'max-w-7xl' : 'max-w-6xl'}`;
   const dashboardContextValue = { activeLocation, selectedStream, reachId };
 
   if (loading || !reachId || error) {
-    return (
-        <div 
-            style={layoutStyles} 
-            className="flex items-center justify-center h-screen"
-        >
-            <DashboardLoadingSpinner />
-        </div>
-    );
+    return <div style={layoutStyles} className="flex items-center justify-center h-screen"><DashboardLoadingSpinner /></div>;
   }
   
   return (
     <DashboardContext.Provider value={dashboardContextValue}>
+      {/* The root is now a flex container */}
       <div
-        className={`h-screen overflow-hidden ${className}`}
+        className="h-screen overflow-hidden flex flex-col"
         style={{ transition: 'padding 0.3s ease-in-out', ...layoutStyles }}
       >
-        <div ref={scrollRef} className="h-full w-full overflow-y-auto" onScroll={handleScroll}>
-          <motion.header 
-            style={{ height: headerHeight }}
-            className="sticky top-0 z-20 text-white"
-          >
-            <div className={`${getContentContainerClasses()} h-full`}>
-              <div className={`relative h-full flex transition-all duration-300
-                ${isHeaderCollapsed ? 'flex-row items-center justify-between' : 'flex-col items-center justify-center'}
-              `}>
-                
-                <motion.div layout="position">
-                  <motion.h1 style={{ fontSize: titleFontSize }} className="font-bold">
-                    {displayName}
-                  </motion.h1>
-                </motion.div>
-
-                <motion.div layout="position" className="flex items-end space-x-2 font-light">
-                  <motion.span style={{ fontSize: flowFontSize }}>
-                    {formatFlow(currentFlow)}
-                  </motion.span>
-                  <span className="pb-2 text-lg opacity-70">{flowUnit}</span>
-                </motion.div>
-
-                <motion.div 
-                  style={{ opacity: infoOpacity }} 
-                  className={`text-center ${isHeaderCollapsed ? 'hidden' : ''}`}
-                >
-                  <p className={`capitalize font-medium ${getRiskColor(riskLevel)}`}>
-                    {riskLevel} Risk
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    {geoLoading ? '...' : (geoLocation as any)?.display}
-                  </p>
-                </motion.div>
-              </div>
+        {/* The header is a flex item. It is NOT sticky. */}
+        <motion.header 
+          style={{ height: headerHeight }}
+          className="w-full text-white z-10" // z-10 keeps it above tiles if any visual overlap occurs
+        >
+          <div className={`${getContentContainerClasses()} h-full`}>
+            <div className={`relative h-full flex transition-all duration-300 ${scrollYProgress.get() > 0.1 ? 'flex-row items-center justify-between' : 'flex-col items-center justify-center'}`}>
+              <motion.div layout="position"><motion.h1 style={{ fontSize: titleFontSize }} className="font-bold">{displayName}</motion.h1></motion.div>
+              <motion.div layout="position" className="flex items-end space-x-2 font-light"><motion.span style={{ fontSize: flowFontSize }}>{formatFlow(currentFlow)}</motion.span><span className="pb-2 text-lg opacity-70">{flowUnit}</span></motion.div>
+              <motion.div style={{ opacity: infoOpacity }} className={`text-center ${scrollYProgress.get() > 0.1 ? 'hidden' : ''}`}><p className={`capitalize font-medium ${getRiskColor(riskLevel)}`}>{riskLevel} Risk</p><p className="text-sm text-gray-400">{geoLoading ? '...' : (geoLocation as any)?.display}</p></motion.div>
             </div>
-          </motion.header>
+          </div>
+        </motion.header>
           
+        {/* The content area is a flex item that grows and scrolls independently */}
+        <div 
+          ref={scrollRef} 
+          className="flex-1 overflow-y-auto"
+        >
           <main className={`${getContentContainerClasses()} py-8`}>
             <TilesManager />
             {children && <div className="mt-8">{children}</div>}

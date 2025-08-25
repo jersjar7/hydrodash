@@ -378,8 +378,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <AppContext.Provider value={contextValue}>
         <div 
           className={`
-            min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 
-            dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900
+            min-h-screen bg-blue-900
             transition-colors duration-300
             ${isMobile ? 'text-sm' : 'text-base'}
           `}
